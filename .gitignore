@@ -26,3 +26,58 @@ build/
 *.pkl
 *.db
 *.log
+
+# Ignore Python virtual environments
+.venv/
+
+# Byte-compiled Python files
+*.pyc
+__pycache__/
+
+# Ignore environment variable files
+.env
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+
+# Frontend
+# Ignore dependencies
+/frontend/node_modules/
+
+/frontend/build/
+/frontend/dist/
+
+# Logs
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+
+# Environment variables
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+
+# IDEs and editors
+/frontend/.vscode/
+/frontend/.idea/
+
+# MacOS files
+/frontend/.DS_Store
+
+# Generated coverage reports
+/frontend/coverage/
+
+/frontend/*.cache
+/frontend/.cache-loader/
+
+/frontend/amplify/
+/frontend/amplify-build/
+
+/frontend/*.tsbuildinfo
+
+# Temporary files
+/frontend/*.tmp
+/frontend/*.log
