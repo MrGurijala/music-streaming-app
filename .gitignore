@@ -1,0 +1,28 @@
+# Python
+*.pyc
+*.pyo
+__pycache__/
+*.pyd
+env/
+venv/
+*.db
+*.sqlite3
+*.log
+*.coverage
+*.tox
+*.nox
+*.hypothesis
+*.pytest_cache
+dist/
+build/
+.eggs/
+*.egg-info/
+*.install
+*.egg
+
+# FastAPI and backend-related
+.env
+*.sqlite3
+*.pkl
+*.db
+*.log
