@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "ec2.amazonaws.com",
+          "lambda.amazonaws.com",
+          "cloudfront.amazonaws.com"
+        ]
+      },
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::music-raw-bucket",
+        "arn:aws:s3:::music-raw-bucket/*",
+        "arn:aws:s3:::music-transcoded-bucket",
+        "arn:aws:s3:::music-transcoded-bucket/*"
+      ]
+    }
+  ]
+}
