@@ -1,3 +1,4 @@
+# Music files upload to AWS s3
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from services.s3_service import upload_file_to_s3
 
