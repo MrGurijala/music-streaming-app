@@ -7,7 +7,7 @@ from services.aws_service import get_transcoded_file_url
 songs_router = APIRouter()
 
 # Add a new song
-@songs_router.post("/")
+@songs_router.post("/songs")
 def add_song(title: str, artist: str, album: str, url: str, cache: bool = False, db: Session = Depends(get_db)):
     song = Song(title=title, artist=artist, album=album, url=url)
     db.add(song)
@@ -16,13 +16,13 @@ def add_song(title: str, artist: str, album: str, url: str, cache: bool = False,
     return {"message": "Song added successfully", "song": song}
 
 # Get all songs with limit
-@songs_router.get("/")
+@songs_router.get("/songs")
 def get_songs(limit: int = Query(10, description="Number of songs to return"), db: Session = Depends(get_db)):
     songs = db.query(Song).limit(limit).all()
     return songs
 
 # Get a specific song
-@songs_router.get("/{song_id}")
+@songs_router.get("/songs/{song_id}")
 def get_song(song_id: int, db: Session = Depends(get_db)):    
     song = db.query(Song).filter(Song.id == song_id).first()
     if not song:
@@ -32,13 +32,13 @@ def get_song(song_id: int, db: Session = Depends(get_db)):
     return song_data
 
 # Search songs
-@songs_router.get("/search")
+@songs_router.get("/songs/search")
 def search_songs(query: str, db: Session = Depends(get_db)):
     songs = db.query(Song).filter(Song.title.ilike(f"%{query}%") | Song.artist.ilike(f"%{query}%") | Song.album.ilike(f"%{query}%")).all()
     return songs
 
 # Stream song using S3 pre-signed URL
-@songs_router.get("/stream/{song_id}")
+@songs_router.get("/songs/{song_id}/stream")
 def stream_song(song_id: int, db: Session = Depends(get_db)):
     song = db.query(Song).filter(Song.id == song_id).first()
     if not song:

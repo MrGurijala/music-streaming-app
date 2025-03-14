@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from services.db import get_db
 from models import Album, AlbumSong
+from schemas.song import AddSongRequest
 
 albums_router = APIRouter()
 
 # Create a new album
-@albums_router.post("/")
+@albums_router.post("/album/create")
 def create_album(name: str, artist: str, db: Session = Depends(get_db)):
     album = Album(name=name, artist=artist)
     db.add(album)
@@ -15,13 +16,13 @@ def create_album(name: str, artist: str, db: Session = Depends(get_db)):
     return {"message": "Album created successfully", "album": album}
 
 # Get all albums
-@albums_router.get("/")
+@albums_router.get("/albums")
 def get_albums(db: Session = Depends(get_db)):
     albums = db.query(Album).all()
     return albums
 
 # Get album details
-@albums_router.get("/{album_id}")
+@albums_router.get("/albums/{album_id}")
 def get_album(album_id: int, db: Session = Depends(get_db)):
     album = db.query(Album).filter(Album.id == album_id).first()
     if not album:
@@ -29,9 +30,9 @@ def get_album(album_id: int, db: Session = Depends(get_db)):
     return album
 
 # Add a song to an album
-@albums_router.post("/{album_id}/songs/{song_id}")
-def add_song_to_album(album_id: int, song_id: int, db: Session = Depends(get_db)):
-    album_song = AlbumSong(album_id=album_id, song_id=song_id)
+@albums_router.post("/{album_id}/songs}")
+def add_song_to_album(album_id: int, song: AddSongRequest, db: Session = Depends(get_db)):
+    album_song = AlbumSong(album_id=album_id, song_id=song.song_id)
     db.add(album_song)
     db.commit()
     return {"message": "Song added to album"}
