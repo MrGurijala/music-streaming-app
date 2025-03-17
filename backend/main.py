@@ -7,6 +7,14 @@ from routes.favourite import favorites_router
 from routes.playlist import playlists_router
 from routes.songs import songs_router
 
+from config import Settings
+settings = Settings()
+
+# Usage example
+print(settings.DATABASE_URL)
+print(settings.S3_BUCKET_NAME)
+
+
 # Initialize FastAPI app
 app = FastAPI()
 
