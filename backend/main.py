@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 import uvicorn
-from mangum import Mangum 
+#from mangum import Mangum 
 from routes.auth import auth_router
 from routes.album import albums_router
 from routes.favourite import favorites_router
@@ -24,7 +24,7 @@ def get_docs():
     return {"message": "Visit /docs for Swagger UI"}
 
 # Lambda handler for AWS Lambda deployment
-handler = Mangum(app)
+#handler = Mangum(app)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
