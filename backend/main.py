@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 import uvicorn
 #from mangum import Mangum 
-from routes.auth import auth_router
-from routes.album import albums_router
-from routes.favourite import favorites_router
-from routes.playlist import playlists_router
-from routes.songs import songs_router
+from backend.routes.auth import auth_router
+from backend.routes.album import albums_router
+from backend.routes.favourite import favorites_router
+from backend.routes.playlist import playlists_router
+from backend.routes.songs import songs_router
 
 
 # Initialize FastAPI app
