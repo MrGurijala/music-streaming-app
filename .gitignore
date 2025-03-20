@@ -42,6 +42,7 @@ __pycache__/
 .idea/
 # Backend
 /backend/src/config/
+/backend/testing_scripts/
 
 # Frontend
 # Ignore dependencies
