@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.services.db import get_db
-from models import Favorite
+from backend.models import Favorite
 from backend.schemas.song import AddSongRequest
 
 favorites_router = APIRouter()

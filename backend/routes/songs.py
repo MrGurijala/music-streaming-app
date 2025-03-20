@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from backend.services.db import get_db
-from backend.schemas import Song
+from backend.models import Song
 from backend.services.aws_service import get_transcoded_file_url
 
 songs_router = APIRouter()

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.services.db import get_db
-from models import Album, AlbumSong
+from backend.models import Album, AlbumSong
 from backend.schemas.song import AddSongRequest
 
 albums_router = APIRouter()
