@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy FastAPI on EC2 with Application Load Balancer
+
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair
+    Type: AWS::EC2::KeyPair::KeyName
+
+  VpcId:
+    Description: VPC ID to deploy resources
+    Type: AWS::EC2::VPC::Id
+
+  PublicSubnets:
+    Description: List of public subnet IDs for the ALB
+    Type: List<AWS::EC2::Subnet::Id>
+
+Resources:
+  FastAPISecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable port 8000 for FastAPI
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 0.0.0.0/0
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from internet
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref EC2Role]
+
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  # FastAPIInstance:
+  #   Type: AWS::EC2::Instance
+  #   Properties:
+  #     InstanceType: t2.micro
+  #     KeyName: !Ref KeyName
+  #     ImageId: ami-003913c9b46d112c3
+  #     SecurityGroupIds: [!Ref FastAPISecurityGroup]
+  #     IamInstanceProfile: !Ref InstanceProfile
+  #     UserData:
+  #       Fn::Base64: !Sub |
+  #         #!/bin/bash
+  #         yum update -y
+  #         amazon-linux-extras enable python3.8
+  #         yum install -y python3.8 git
+  #         cd /home/ec2-user
+  #         git clone -b backend-dev https://github.com/your-username/your-repo.git
+  #         cd your-repo/backend
+  #         python3.8 -m venv venv
+  #         source venv/bin/activate
+  #         pip install --upgrade pip
+  #         pip install -r requirements.txt
+  #         nohup venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 &
+
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: FastAPI-ALB
+      Scheme: internet-facing
+      Subnets: !Ref PublicSubnets
+      SecurityGroups: [!Ref ALBSecurityGroup]
+      Type: application
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: FastAPITargetGroup
+      Port: 8000
+      Protocol: HTTP
+      VpcId: !Ref VpcId
+      TargetType: instance
+      HealthCheckPath: /docs
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+
+Mappings:
+  RegionMap:
+    eu-west-2:
+      DefaultVPC: vpc-02e2f5fac05fd5feb
+      PublicSubnets:
+        - subnet-06a95e62ddaae9f3f
+        - subnet-0d35c539fb7ab9ffb
+        - subnet-0122213af870d2c20
+
+Outputs:
+  ALBURL:
+    Description: URL to access the FastAPI service
+    Value: !Sub "http://${ALB.DNSName}"
