@@ -54,29 +54,60 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  
+    LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: FastAPILaunchTemplate
+      LaunchTemplateData:
+        InstanceType: t2.micro
+        KeyName: !Ref KeyName
+        ImageId: ami-00710ab5544b60cf7  # Update if needed
+        IamInstanceProfile:
+          Name: !Ref InstanceProfile
+        SecurityGroupIds:
+          - !Ref FastAPISecurityGroup
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            yum update -y
+            amazon-linux-extras enable python3.8
+            yum install -y python3.8 git
+            cd /home/ec2-user
+            git clone -b backend-dev https://github.com/MrGurijala/music-streaming-app.git
+            cd your-repo/backend
+            python3.8 -m venv venv
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+            nohup venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 &
 
-  # FastAPIInstance:
-  #   Type: AWS::EC2::Instance
-  #   Properties:
-  #     InstanceType: t2.micro
-  #     KeyName: !Ref KeyName
-  #     ImageId: ami-003913c9b46d112c3
-  #     SecurityGroupIds: [!Ref FastAPISecurityGroup]
-  #     IamInstanceProfile: !Ref InstanceProfile
-  #     UserData:
-  #       Fn::Base64: !Sub |
-  #         #!/bin/bash
-  #         yum update -y
-  #         amazon-linux-extras enable python3.8
-  #         yum install -y python3.8 git
-  #         cd /home/ec2-user
-  #         git clone -b backend-dev https://github.com/your-username/your-repo.git
-  #         cd your-repo/backend
-  #         python3.8 -m venv venv
-  #         source venv/bin/activate
-  #         pip install --upgrade pip
-  #         pip install -r requirements.txt
-  #         nohup venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 &
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: FastAPI-ASG
+      MinSize: '1'
+      MaxSize: '3'
+      DesiredCapacity: '1'
+      VPCZoneIdentifier: !Ref PublicSubnets
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      TargetGroupARNs:
+        - !Ref TargetGroup
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 60
+      Tags:
+        - Key: Name
+          Value: FastAPI-ASG-Instance
+          PropagateAtLaunch: true
+
+  AttachExistingInstance:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroupAttachment
+    Properties:
+      TargetGroupArn: !Ref TargetGroup
+      TargetId: i-0c7080ce37758d6e7  # Replace with your EC2 instance ID
+      Port: 8000
 
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
