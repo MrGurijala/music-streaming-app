@@ -23,6 +23,14 @@ app.include_router(songs_router, prefix="/songs", tags=["Songs"])
 def get_docs():
     return {"message": "Visit /docs for Swagger UI"}
 
+@app.get("/")
+def read_root():
+    return {"message": "FastAPI is running!"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
 # Lambda handler for AWS Lambda deployment
 #handler = Mangum(app)
 
