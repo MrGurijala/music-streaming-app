@@ -36,6 +36,7 @@ __pycache__/
 
 # Ignore environment variable files
 .env
+env_local/
 
 # Ignore IDE-specific files
 .vscode/
