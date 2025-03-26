@@ -54,15 +54,15 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-  
-    LaunchTemplate:
+
+  LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateName: FastAPILaunchTemplate
       LaunchTemplateData:
         InstanceType: t2.micro
         KeyName: !Ref KeyName
-        ImageId: ami-00710ab5544b60cf7  # Update if needed
+        ImageId: ami-00710ab5544b60cf7 # Update if needed
         IamInstanceProfile:
           Name: !Ref InstanceProfile
         SecurityGroupIds:
@@ -75,20 +75,20 @@ Resources:
             yum install -y python3.8 git
             cd /home/ec2-user
             git clone -b backend-dev https://github.com/MrGurijala/music-streaming-app.git
-            cd your-repo/backend
+            cd music-streaming-app
             python3.8 -m venv venv
             source venv/bin/activate
             pip install --upgrade pip
-            pip install -r requirements.txt
+            pip install -r backend/requirements.txt
             nohup venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 &
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       AutoScalingGroupName: FastAPI-ASG
-      MinSize: '1'
-      MaxSize: '3'
-      DesiredCapacity: '1'
+      MinSize: "1"
+      MaxSize: "3"
+      DesiredCapacity: "1"
       VPCZoneIdentifier: !Ref PublicSubnets
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplate
@@ -106,7 +106,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroupAttachment
     Properties:
       TargetGroupArn: !Ref TargetGroup
-      TargetId: i-0c7080ce37758d6e7  # Replace with your EC2 instance ID
+      TargetId: i-0c7080ce37758d6e7 # Replace with your EC2 instance ID
       Port: 8000
 
   ALB:
