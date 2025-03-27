@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Deploy FastAPI on EC2 with Application Load Balancer
+Description: Deploy FastAPI on EC2 with Application Load Balancer and Auto Scaling
 
 Parameters:
   KeyName:
@@ -37,11 +37,6 @@ Resources:
           ToPort: 80
           CidrIp: 0.0.0.0/0
 
-  InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Roles: [!Ref EC2Role]
-
   EC2Role:
     Type: AWS::IAM::Role
     Properties:
@@ -55,6 +50,11 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref EC2Role]
+
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -62,7 +62,7 @@ Resources:
       LaunchTemplateData:
         InstanceType: t2.micro
         KeyName: !Ref KeyName
-        ImageId: ami-00710ab5544b60cf7 # Update if needed
+        ImageId: ami-04b2ad6c50c72936b
         IamInstanceProfile:
           Name: !Ref InstanceProfile
         SecurityGroupIds:
@@ -101,13 +101,6 @@ Resources:
         - Key: Name
           Value: FastAPI-ASG-Instance
           PropagateAtLaunch: true
-
-  AttachExistingInstance:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroupAttachment
-    Properties:
-      TargetGroupArn: !Ref TargetGroup
-      TargetId: i-0c7080ce37758d6e7 # Replace with your EC2 instance ID
-      Port: 8000
 
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
