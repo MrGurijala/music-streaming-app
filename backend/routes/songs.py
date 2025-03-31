@@ -7,7 +7,7 @@ from backend.services.aws_service import get_transcoded_file_url
 songs_router = APIRouter()
 
 # Add a new song
-@songs_router.post("/")
+@songs_router.post("/create")
 def add_song(title: str, artist: str, album: str, url: str, cache: bool = False, db: Session = Depends(get_db)):
     song = Song(title=title, artist=artist, album=album, url=url)
     db.add(song)

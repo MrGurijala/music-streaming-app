@@ -80,8 +80,18 @@ Resources:
             python3.8 -m venv venv
             source venv/bin/activate
             pip install --upgrade pip
+            pip install gunicorn
             pip install -r backend/requirements.txt
-            nohup venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 &
+            mkdir -p /var/log/fastapi
+            venv/bin/gunicorn main:app \
+              -w 4 \
+              -k uvicorn.workers.UvicornWorker \
+              --bind 0.0.0.0:8000 \
+              --access-logfile /var/log/fastapi/access.log \
+              --error-logfile /var/log/fastapi/error.log \
+              --daemon
+
+
 
             # Write CloudWatch Agent config
             cat <<EOF > /opt/aws/amazon-cloudwatch-agent/bin/cloudwatch-config.json
@@ -131,6 +141,16 @@ Resources:
           Value: FastAPI-ASG-Instance
           PropagateAtLaunch: true
 
+  ScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 60.0
+
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -161,6 +181,42 @@ Resources:
       Protocol: HTTP
 
   # CloudWatch Alarms
+  ScaleOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: FastAPI-ScaleOut-Alarm
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 70
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AutoScalingGroup
+      AlarmActions:
+        - !Ref ScalingPolicy
+      TreatMissingData: missing
+
+  ScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: FastAPI-ScaleIn-Alarm
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 30
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AutoScalingGroup
+      AlarmActions:
+        - !Ref ScalingPolicy
+      TreatMissingData: missing
+
   CPUUtilizationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
