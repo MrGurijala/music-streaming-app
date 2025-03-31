@@ -11,7 +11,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 auth_router = APIRouter()
 
 # User Signup
-@auth_router.post("/auth/signup")
+@auth_router.post("/signup")
 def signup(username: str, email: str, password: str, db: Session = Depends(get_db)):
     hashed_password = bcrypt.hash(password)
     user = User(username=username, email=email, password_hash=hashed_password)
@@ -21,7 +21,7 @@ def signup(username: str, email: str, password: str, db: Session = Depends(get_d
     return {"message": "User created successfully", "user_id": user.id}
 
 # User Login
-@auth_router.post("/auth/login")
+@auth_router.post("/login")
 def login(username: str, password: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == username).first()
     if not user or not verify_password(password, user.password_hash):
@@ -30,7 +30,7 @@ def login(username: str, password: str, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 # Get Current User
-@auth_router.get("/auth/me")
+@auth_router.get("/me")
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     user_id = create_access_token.decode_token(token)
     user = db.query(User).filter(User.id == user_id).first()

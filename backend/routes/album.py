@@ -7,7 +7,7 @@ from backend.schemas.song import AddSongRequest
 albums_router = APIRouter()
 
 # Create a new album
-@albums_router.post("/album/create")
+@albums_router.post("/create")
 def create_album(name: str, artist: str, db: Session = Depends(get_db)):
     album = Album(name=name, artist=artist)
     db.add(album)
@@ -16,13 +16,13 @@ def create_album(name: str, artist: str, db: Session = Depends(get_db)):
     return {"message": "Album created successfully", "album": album}
 
 # Get all albums
-@albums_router.get("/albums")
+@albums_router.get("/")
 def get_albums(db: Session = Depends(get_db)):
     albums = db.query(Album).all()
     return albums
 
 # Get album details
-@albums_router.get("/albums/{album_id}")
+@albums_router.get("/{album_id}")
 def get_album(album_id: int, db: Session = Depends(get_db)):
     album = db.query(Album).filter(Album.id == album_id).first()
     if not album:
