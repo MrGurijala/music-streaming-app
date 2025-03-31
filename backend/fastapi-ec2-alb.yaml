@@ -14,14 +14,6 @@ Parameters:
     Description: List of public subnet IDs for the ALB
     Type: List<AWS::EC2::Subnet::Id>
 
-  HostedZoneName:
-    Description: Route 53 Hosted Zone domain name (e.g., myproject.com.)
-    Type: String
-
-  DomainName:
-    Description: Subdomain for API (e.g., api.myproject.com)
-    Type: String
-
 Resources:
   FastAPISecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -167,16 +159,6 @@ Resources:
       LoadBalancerArn: !Ref ALB
       Port: 80
       Protocol: HTTP
-
-  ALBDNSRecord:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !Ref DomainName
-      Type: A
-      AliasTarget:
-        DNSName: !GetAtt ALB.DNSName
-        HostedZoneId: !GetAtt ALB.CanonicalHostedZoneID
 
   # CloudWatch Alarms
   CPUUtilizationAlarm:
