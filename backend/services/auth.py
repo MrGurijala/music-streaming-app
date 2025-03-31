@@ -1,9 +1,15 @@
+import boto3
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-# Secret key for JWT (Replace with environment variable in production)
-SECRET_KEY = "your_secret_key" # TODO: Need to update the secret key
+ssm = boto3.client("ssm", region_name="eu-west-2")
+
+def get_ssm_param(name: str) -> str:
+    return ssm.get_parameter(Name=name, WithDecryption=True)["Parameter"]["Value"]
+
+# Load values from SSM
+SECRET_KEY = get_ssm_param("/music-streaming-app/JWT_SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

@@ -28,10 +28,6 @@ app.include_router(playlists_router, prefix="/playlists", tags=["Playlists"])
 app.include_router(songs_router, prefix="/songs", tags=["Songs"])
 
 # API Documentation
-@app.get("/docs")
-def get_docs():
-    return {"message": "Visit /docs for Swagger UI"}
-
 @app.get("/")
 def read_root():
     return {"message": "FastAPI is running!"}
@@ -40,14 +36,9 @@ def read_root():
 def health_check():
     return {"status": "ok"}
 
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = (time.time() - start_time) * 1000  # in ms
-    print(f"{request.method} {request.url.path} - {response.status_code} - {process_time:.2f}ms")
-    return response
+@app.get("/docs")
+def get_docs():
+    return {"message": "Visit /docs for Swagger UI"}
 
 
 # Lambda handler for AWS Lambda deployment

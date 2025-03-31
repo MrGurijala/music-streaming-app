@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from backend.services.db import get_db
 from backend.models import Album, AlbumSong
@@ -17,8 +17,8 @@ def create_album(name: str, artist: str, db: Session = Depends(get_db)):
 
 # Get all albums
 @albums_router.get("/")
-def get_albums(db: Session = Depends(get_db)):
-    albums = db.query(Album).all()
+def get_albums(limit: int = Query(10, description="Number of albums to return"), db: Session = Depends(get_db)):
+    albums = db.query(Album).limit(limit).all()
     return albums
 
 # Get album details

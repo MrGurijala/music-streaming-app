@@ -89,9 +89,7 @@ Resources:
               --bind 0.0.0.0:8000 \
               --access-logfile /var/log/fastapi/access.log \
               --error-logfile /var/log/fastapi/error.log \
-              --daemon
-
-
+              --timeout 60 --daemon
 
             # Write CloudWatch Agent config
             cat <<EOF > /opt/aws/amazon-cloudwatch-agent/bin/cloudwatch-config.json
@@ -168,7 +166,11 @@ Resources:
       Protocol: HTTP
       VpcId: !Ref VpcId
       TargetType: instance
-      HealthCheckPath: /docs
+      HealthCheckPath: /health
+      HealthCheckTimeoutSeconds: 10
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 5
+      UnhealthyThresholdCount: 2
 
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
