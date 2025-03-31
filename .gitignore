@@ -43,7 +43,6 @@ env_local/
 .idea/
 # Backend
 /backend/src/config/
-/backend/testing_scripts/
 
 # Frontend
 # Ignore dependencies
