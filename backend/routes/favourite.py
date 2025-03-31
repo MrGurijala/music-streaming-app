@@ -7,7 +7,7 @@ from backend.schemas.song import AddSongRequest
 favorites_router = APIRouter()
 
 # Add a song to favorites
-@favorites_router.post("/add_favorite/{user_id}")
+@favorites_router.post("/create/{user_id}")
 def add_favorite(user_id: int, song: AddSongRequest, db: Session = Depends(get_db)):
     favorite = Favorite(user_id=user_id, song_id=song.song_id)
     db.add(favorite)
