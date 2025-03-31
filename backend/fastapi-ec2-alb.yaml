@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Deploy FastAPI on EC2 with Application Load Balancer and Auto Scaling
+Description: Deploy FastAPI on EC2 with Application Load Balancer, Auto Scaling, and CloudWatch Alarms
 
 Parameters:
   KeyName:
@@ -49,6 +49,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -72,7 +73,7 @@ Resources:
             #!/bin/bash
             yum update -y
             amazon-linux-extras enable python3.8
-            yum install -y python3.8 git
+            yum install -y python3.8 git amazon-cloudwatch-agent
             cd /home/ec2-user
             git clone -b backend-dev https://github.com/MrGurijala/music-streaming-app.git
             cd music-streaming-app
@@ -81,6 +82,34 @@ Resources:
             pip install --upgrade pip
             pip install -r backend/requirements.txt
             nohup venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 &
+
+            # Write CloudWatch Agent config
+            cat <<EOF > /opt/aws/amazon-cloudwatch-agent/bin/cloudwatch-config.json
+            {
+              "metrics": {
+                "metrics_collected": {
+                  "cpu": {
+                    "measurement": ["cpu_usage_idle", "cpu_usage_iowait", "cpu_usage_user"],
+                    "metrics_collection_interval": 60
+                  },
+                  "mem": {
+                    "measurement": ["mem_used_percent"]
+                  },
+                  "disk": {
+                    "measurement": ["used_percent"],
+                    "resources": ["*"]
+                  },
+                  "swap": {
+                    "measurement": ["swap_used_percent"]
+                  }
+                }
+              }
+            }
+            EOF
+
+            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+              -a fetch-config -m ec2 \
+              -c file:/opt/aws/amazon-cloudwatch-agent/bin/cloudwatch-config.json -s
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -130,6 +159,87 @@ Resources:
       LoadBalancerArn: !Ref ALB
       Port: 80
       Protocol: HTTP
+
+  # CloudWatch Alarms
+  CPUUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: HighCPUUtilization
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Period: 300
+      Statistic: Average
+      Threshold: 75
+      AlarmDescription: Alarm when CPU exceeds 75%
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: FastAPI-ASG
+
+  StatusCheckFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: EC2StatusCheckFailed
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      MetricName: StatusCheckFailed_Instance
+      Namespace: AWS/EC2
+      Period: 300
+      Statistic: Average
+      Threshold: 0
+      AlarmDescription: Alarm when instance status check fails
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: FastAPI-ASG
+
+  TargetResponseTimeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: HighTargetResponseTime
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      MetricName: TargetResponseTime
+      Namespace: AWS/ApplicationELB
+      Period: 300
+      Statistic: Average
+      Threshold: 0.2
+      AlarmDescription: ALB target response time > 200ms
+      Dimensions:
+        - Name: TargetGroup
+          Value: !Ref TargetGroup
+
+  Target5XXErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: Target5XXErrors
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      MetricName: HTTPCode_Target_5XX_Count
+      Namespace: AWS/ApplicationELB
+      Period: 300
+      Statistic: Sum
+      Threshold: 1
+      AlarmDescription: ALB target returned 5XX errors
+      Dimensions:
+        - Name: TargetGroup
+          Value: !Ref TargetGroup
+
+  BillingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: HighDailyEstimatedCharges
+      Namespace: AWS/Billing
+      MetricName: EstimatedCharges
+      Dimensions:
+        - Name: Currency
+          Value: USD
+      Statistic: Maximum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 20
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: Estimated charges exceed $20/day
 
 Mappings:
   RegionMap:

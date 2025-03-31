@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import uvicorn
+import time
 #from mangum import Mangum 
 from backend.routes.auth import auth_router
 from backend.routes.album import albums_router
@@ -30,6 +31,16 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = (time.time() - start_time) * 1000  # in ms
+    print(f"{request.method} {request.url.path} - {response.status_code} - {process_time:.2f}ms")
+    return response
+
 
 # Lambda handler for AWS Lambda deployment
 #handler = Mangum(app)
