@@ -1,129 +1,132 @@
 from locust import HttpUser, task, between
 import random
+import string
 
 class MusicStreamUser(HttpUser):
     wait_time = between(1, 2)
 
     def on_start(self):
-        user_id = random.randint(10000, 99999)
-        username = f"user{user_id}"
-        password = "test123"
-        email = f"{username}@example.com"
+        self.username = self._random_username()
+        self.password = "test123"
+        self.email = f"{self.username}@example.com"
+        self.song_id = None
+        self.album_id = None
+        self.playlist_id = None
+        self.user_id = None
+        self._signup_and_login()
 
-        # Sign up the user
-        signup_response = self.client.post("/auth/signup", params={
-            "username": username,
-            "email": email,
-            "password": password
+    def _random_username(self):
+        return "user" + str(random.randint(10000, 99999))
+
+    def _signup_and_login(self):
+        signup_resp = self.client.post("/auth/signup", params={
+            "username": self.username,
+            "email": self.email,
+            "password": self.password
         })
+        if signup_resp.status_code == 200:
+            self.user_id = signup_resp.json().get("user_id")
 
-        if signup_response.status_code == 200:
-            try:
-                self.user_id = signup_response.json().get("user_id")
-            except Exception:
-                self.user_id = None
-        else:
-            self.user_id = None
-
-        self.username = username
-        self.password = password
-
-        # Login and get token
-        login_response = self.client.post("/auth/login", params={
-            "username": username,
-            "password": password
+        login_resp = self.client.post("/auth/login", params={
+            "username": self.username,
+            "password": self.password
         })
-
-        if login_response.status_code == 200:
-            try:
-                self.token = login_response.json().get("access_token")
-                self.headers = {"Authorization": f"Bearer {self.token}"}
-            except Exception:
-                self.token = None
-                self.headers = {}
+        if login_resp.status_code == 200:
+            self.token = login_resp.json().get("access_token")
+            self.headers = {"Authorization": f"Bearer {self.token}"}
         else:
             self.token = None
             self.headers = {}
 
-    @task
-    def get_songs(self):
-        self.client.get("/songs")
+    @task(2)
+    def view_songs(self):
+        resp = self.client.get("/songs", headers=self.headers)
+        if resp.status_code == 200 and resp.json():
+            self.song_id = resp.json()[0]["id"]
 
-    @task
-    def get_song(self):
-        self.client.get("/songs/1")
-
-    @task
+    @task(1)
     def search_songs(self):
-        self.client.get("/songs/search?query=love")
+        self.client.get("/songs/search", params={"query": "rock"}, headers=self.headers)
 
-    @task
+    @task(2)
     def stream_song(self):
-        self.client.get("/songs/1/stream")
+        if self.song_id:
+            self.client.get(f"/songs/{self.song_id}/stream", headers=self.headers)
 
-    @task
+    @task(1)
+    def add_song(self):
+        genres = ["classical", "electronic", "pop", "rock"]
+        genre = random.choice(genres)
+        index = random.randint(1, 100)
+        self.client.post("/songs/create", params={
+            "title": f"{genre.capitalize()} Song {index}",
+            "artist": f"Artist {index}",
+            "album": f"{genre.capitalize()} Album {index}",
+            "url": f"s3://music-transcoded-bucket/songs/{genre}/{genre}/{index}.mp3"
+        }, headers=self.headers)
+
+    @task(1)
     def create_album(self):
-        self.client.post("/albums/create", params={
-            "name": "My Album",
-            "artist": "Some Artist"
-        })
+        resp = self.client.post("/albums/create", params={
+            "name": "Test Album",
+            "artist": "Test Artist"
+        }, headers=self.headers)
+        if resp.status_code == 200:
+            self.album_id = resp.json()["album"]["id"]
 
-    @task
-    def get_albums(self):
-        self.client.get("/albums")
-
-    @task
-    def get_album_details(self):
-        self.client.get("/albums/1")
-
-    @task
+    @task(1)
     def add_song_to_album(self):
-        self.client.post("/albums/1/songs", json={"song_id": 1})
+        if self.album_id and self.song_id:
+            self.client.post(f"/albums/{self.album_id}/songs", json={"song_id": self.song_id}, headers=self.headers)
 
-    @task
+    @task(1)
     def remove_song_from_album(self):
-        self.client.delete("/albums/1/songs/1")
+        if self.album_id and self.song_id:
+            self.client.delete(f"/albums/{self.album_id}/songs/{self.song_id}", headers=self.headers)
 
-    @task
+    @task(1)
     def delete_album(self):
-        self.client.delete("/albums/1")
+        if self.album_id:
+            self.client.delete(f"/albums/{self.album_id}", headers=self.headers)
+            self.album_id = None
 
-    @task
+    @task(1)
     def create_playlist(self):
         if self.user_id:
-            self.client.post("/playlists", json={
+            resp = self.client.post("/playlists", json={
                 "name": "Locust Playlist",
                 "user": {"user_id": self.user_id}
             }, headers=self.headers)
+            if resp.status_code == 200:
+                self.playlist_id = resp.json()["playlist"]["id"]
 
-    @task
-    def get_user_playlists(self):
-        if self.user_id:
-            self.client.get(f"/playlists/user/{self.user_id}", headers=self.headers)
-
-    @task
+    @task(1)
     def add_song_to_playlist(self):
-        self.client.post("/playlists/1/songs", json={"song_id": 1}, headers=self.headers)
+        if self.playlist_id and self.song_id:
+            self.client.post(f"/playlists/{self.playlist_id}/songs", json={"song_id": self.song_id}, headers=self.headers)
 
-    @task
+    @task(1)
     def remove_song_from_playlist(self):
-        self.client.delete("/playlists/1/songs/1", headers=self.headers)
+        if self.playlist_id and self.song_id:
+            self.client.delete(f"/playlists/{self.playlist_id}/songs/{self.song_id}", headers=self.headers)
 
-    @task
+    @task(1)
     def delete_playlist(self):
-        self.client.delete("/playlists/1", headers=self.headers)
+        if self.playlist_id:
+            self.client.delete(f"/playlists/{self.playlist_id}", headers=self.headers)
+            self.playlist_id = None
 
-    @task
+    @task(1)
     def add_favorite(self):
-        if self.user_id:
-            self.client.post(f"/favorites/create/{self.user_id}", json={"song_id": 1}, headers=self.headers)
+        if self.user_id and self.song_id:
+            self.client.post(f"/favorites/create/{self.user_id}", json={"song_id": self.song_id}, headers=self.headers)
 
-    @task
+    @task(1)
     def get_favorites(self):
         if self.user_id:
             self.client.get(f"/favorites/{self.user_id}", headers=self.headers)
 
-    @task
+    @task(1)
     def remove_favorite(self):
-        if self.user_id:
-            self.client.delete(f"/favorites/{self.user_id}/1", headers=self.headers)
+        if self.user_id and self.song_id:
+            self.client.delete(f"/favorites/{self.user_id}/{self.song_id}", headers=self.headers)

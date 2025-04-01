@@ -30,7 +30,7 @@ def get_album(album_id: int, db: Session = Depends(get_db)):
     return album
 
 # Add a song to an album
-@albums_router.post("/{album_id}/songs}")
+@albums_router.post("/{album_id}/songs")
 def add_song_to_album(album_id: int, song: AddSongRequest, db: Session = Depends(get_db)):
     album_song = AlbumSong(album_id=album_id, song_id=song.song_id)
     db.add(album_song)

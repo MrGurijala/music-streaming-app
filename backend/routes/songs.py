@@ -33,8 +33,15 @@ def get_song(song_id: int, db: Session = Depends(get_db)):
 
 # Search songs
 @songs_router.get("/search")
-def search_songs(query: str, db: Session = Depends(get_db)):
-    songs = db.query(Song).filter(Song.title.ilike(f"%{query}%") | Song.artist.ilike(f"%{query}%") | Song.album.ilike(f"%{query}%")).all()
+def search_songs(
+    query: str = Query(..., min_length=1, description="Search term must be at least 1 character long"),
+    db: Session = Depends(get_db)
+):
+    songs = db.query(Song).filter(
+        Song.title.ilike(f"%{query}%") |
+        Song.artist.ilike(f"%{query}%") |
+        Song.album.ilike(f"%{query}%")
+    ).all()
     return songs
 
 # Stream song using S3 pre-signed URL
