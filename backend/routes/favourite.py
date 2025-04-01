@@ -14,12 +14,6 @@ def add_favorite(user_id: int, song: AddSongRequest, db: Session = Depends(get_d
     db.commit()
     return {"message": "Song added to favorites"}
 
-# Get all favorite songs for a user
-@favorites_router.get("/{user_id}")
-def get_favorites(user_id: int, db: Session = Depends(get_db)):
-    favorites = db.query(Favorite).filter(Favorite.user_id == user_id).all()
-    return favorites
-
 # Remove a song from favorites
 @favorites_router.delete("/{user_id}/{song_id}")
 def remove_favorite(user_id: int, song_id: int, db: Session = Depends(get_db)):
@@ -29,3 +23,9 @@ def remove_favorite(user_id: int, song_id: int, db: Session = Depends(get_db)):
     db.delete(favorite)
     db.commit()
     return {"message": "Song removed from favorites"}
+
+# Get all favorite songs for a user
+@favorites_router.get("/{user_id}")
+def get_favorites(user_id: int, db: Session = Depends(get_db)):
+    favorites = db.query(Favorite).filter(Favorite.user_id == user_id).all()
+    return favorites

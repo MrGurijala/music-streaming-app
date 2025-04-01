@@ -5,3 +5,7 @@ class AddSongRequest(BaseModel):
 
 class AddUserRequest(BaseModel):
     user_id: int
+
+class CreatePlaylistRequest(BaseModel):
+    name: str
+    user: AddUserRequest

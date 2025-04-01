@@ -2,24 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.services.db import get_db
 from backend.models import Playlist, PlaylistSong
-from backend.schemas.song import AddUserRequest, AddSongRequest
+from backend.schemas.song import AddSongRequest, CreatePlaylistRequest
 
 playlists_router = APIRouter()
 
 # Create a new playlist
 @playlists_router.post("/create")
-def create_playlist(name: str, user: AddUserRequest, db: Session = Depends(get_db)):
-    playlist = Playlist(name=name, user_id=user.user_id)
+def create_playlist(data: CreatePlaylistRequest, db: Session = Depends(get_db)):
+    playlist = Playlist(name=data.name, user_id=data.user.user_id)
     db.add(playlist)
     db.commit()
     db.refresh(playlist)
     return {"message": "Playlist created successfully", "playlist": playlist}
-
-# Get all playlists for a user
-@playlists_router.get("/user/{user_id}")
-def get_playlists(user_id: int, db: Session = Depends(get_db)):
-    playlists = db.query(Playlist).filter(Playlist.user_id == user_id).all()
-    return playlists
 
 # Add a song to a playlist
 @playlists_router.post("/{playlist_id}/songs")
@@ -48,3 +42,9 @@ def delete_playlist(playlist_id: int, db: Session = Depends(get_db)):
     db.delete(playlist)
     db.commit()
     return {"message": "Playlist deleted successfully"}
+
+# Get all playlists for a user
+@playlists_router.get("/user/{user_id}")
+def get_playlists(user_id: int, db: Session = Depends(get_db)):
+    playlists = db.query(Playlist).filter(Playlist.user_id == user_id).all()
+    return playlists

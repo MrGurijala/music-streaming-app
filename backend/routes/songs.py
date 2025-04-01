@@ -34,6 +34,15 @@ def search_songs(
     ).all()
     return songs
 
+# Stream song using S3 pre-signed URL
+@songs_router.get("/{song_id}/stream")
+def stream_song(song_id: int, db: Session = Depends(get_db)):
+    song = db.query(Song).filter(Song.id == song_id).first()
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    presigned_url = get_transcoded_file_url(song.url)
+    return {"stream_url": presigned_url}
+
 # Get a specific song
 @songs_router.get("/{song_id}")
 def get_song(song_id: int, db: Session = Depends(get_db)):    
@@ -43,12 +52,3 @@ def get_song(song_id: int, db: Session = Depends(get_db)):
     
     song_data = {"id": song.id, "title": song.title, "artist": song.artist, "album": song.album, "url": song.url}
     return song_data
-
-# Stream song using S3 pre-signed URL
-@songs_router.get("/{song_id}/stream")
-def stream_song(song_id: int, db: Session = Depends(get_db)):
-    song = db.query(Song).filter(Song.id == song_id).first()
-    if not song:
-        raise HTTPException(status_code=404, detail="Song not found")
-    presigned_url = get_transcoded_file_url(song.url)
-    return {"stream_url": presigned_url}

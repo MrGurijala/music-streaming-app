@@ -1,20 +1,22 @@
 from locust import HttpUser, task, between
 import random
+import string
 
 class MusicStreamUser(HttpUser):
     wait_time = between(1, 2)
 
     def on_start(self):
-        self.username = f"user{random.randint(10000, 99999)}"
+        self.username = self._random_username()
         self.password = "test123"
         self.email = f"{self.username}@example.com"
         self.song_id = None
         self.album_id = None
         self.playlist_id = None
         self.user_id = None
-        self.token = None
-        self.headers = {}
         self._signup_and_login()
+
+    def _random_username(self):
+        return "user" + str(random.randint(10000, 99999))
 
     def _signup_and_login(self):
         signup_resp = self.client.post("/auth/signup", params={
@@ -32,6 +34,9 @@ class MusicStreamUser(HttpUser):
         if login_resp.status_code == 200:
             self.token = login_resp.json().get("access_token")
             self.headers = {"Authorization": f"Bearer {self.token}"}
+        else:
+            self.token = None
+            self.headers = {}
 
     @task(2)
     def view_songs(self):
@@ -53,14 +58,12 @@ class MusicStreamUser(HttpUser):
         genres = ["classical", "electronic", "pop", "rock"]
         genre = random.choice(genres)
         index = random.randint(1, 100)
-        resp = self.client.post("/songs/create", params={
+        self.client.post("/songs/create", params={
             "title": f"{genre.capitalize()} Song {index}",
             "artist": f"Artist {index}",
             "album": f"{genre.capitalize()} Album {index}",
             "url": f"s3://music-transcoded-bucket/songs/{genre}/{genre}/{index}.mp3"
         }, headers=self.headers)
-        if resp.status_code == 200:
-            self.song_id = resp.json()["song"]["id"]
 
     @task(1)
     def create_album(self):
@@ -75,14 +78,6 @@ class MusicStreamUser(HttpUser):
     def add_song_to_album(self):
         if self.album_id and self.song_id:
             self.client.post(f"/albums/{self.album_id}/songs", json={"song_id": self.song_id}, headers=self.headers)
-
-    @task(1)
-    def remove_song_from_album(self):
-        if self.album_id and self.song_id:
-            # Check if song is in album before removing
-            resp = self.client.delete(f"/albums/{self.album_id}/songs/{self.song_id}", headers=self.headers)
-            if resp.status_code == 200:
-                self.song_id = None
 
     @task(1)
     def delete_album(self):
@@ -126,12 +121,8 @@ class MusicStreamUser(HttpUser):
         if self.user_id:
             self.client.get(f"/favorites/{self.user_id}", headers=self.headers)
 
+
     @task(1)
     def remove_favorite(self):
         if self.user_id and self.song_id:
-            # Check if song is in favorites before deleting
-            resp = self.client.get(f"/favorites/{self.user_id}", headers=self.headers)
-            if resp.status_code == 200:
-                song_ids = [fav["song_id"] for fav in resp.json()]
-                if self.song_id in song_ids:
-                    self.client.delete(f"/favorites/{self.user_id}/{self.song_id}", headers=self.headers)
+            self.client.delete(f"/favorites/{self.user_id}/{self.song_id}", headers=self.headers)

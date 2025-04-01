@@ -15,20 +15,6 @@ def create_album(name: str, artist: str, db: Session = Depends(get_db)):
     db.refresh(album)
     return {"message": "Album created successfully", "album": album}
 
-# Get all albums
-@albums_router.get("/")
-def get_albums(limit: int = Query(10, description="Number of albums to return"), db: Session = Depends(get_db)):
-    albums = db.query(Album).limit(limit).all()
-    return albums
-
-# Get album details
-@albums_router.get("/{album_id}")
-def get_album(album_id: int, db: Session = Depends(get_db)):
-    album = db.query(Album).filter(Album.id == album_id).first()
-    if not album:
-        raise HTTPException(status_code=404, detail="Album not found")
-    return album
-
 # Add a song to an album
 @albums_router.post("/{album_id}/songs")
 def add_song_to_album(album_id: int, song: AddSongRequest, db: Session = Depends(get_db)):
@@ -56,3 +42,17 @@ def delete_album(album_id: int, db: Session = Depends(get_db)):
     db.delete(album)
     db.commit()
     return {"message": "Album deleted successfully"}
+
+# Get album details
+@albums_router.get("/{album_id}")
+def get_album(album_id: int, db: Session = Depends(get_db)):
+    album = db.query(Album).filter(Album.id == album_id).first()
+    if not album:
+        raise HTTPException(status_code=404, detail="Album not found")
+    return album
+
+# Get all albums
+@albums_router.get("/")
+def get_albums(limit: int = Query(10, description="Number of albums to return"), db: Session = Depends(get_db)):
+    albums = db.query(Album).limit(limit).all()
+    return albums
