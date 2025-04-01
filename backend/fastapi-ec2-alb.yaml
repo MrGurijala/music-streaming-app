@@ -26,6 +26,17 @@ Resources:
           ToPort: 8000
           CidrIp: 0.0.0.0/0
 
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow PostgreSQL access from EC2 FastAPI SG
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref FastAPISecurityGroup
+
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
