@@ -7,7 +7,7 @@ from backend.schemas.song import AddUserRequest, AddSongRequest
 playlists_router = APIRouter()
 
 # Create a new playlist
-@playlists_router.post("/")
+@playlists_router.post("/create")
 def create_playlist(name: str, user: AddUserRequest, db: Session = Depends(get_db)):
     playlist = Playlist(name=name, user_id=user.user_id)
     db.add(playlist)
