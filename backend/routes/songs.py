@@ -21,16 +21,6 @@ def get_songs(limit: int = Query(10, description="Number of songs to return"), d
     songs = db.query(Song).limit(limit).all()
     return songs
 
-# Get a specific song
-@songs_router.get("/{song_id}")
-def get_song(song_id: int, db: Session = Depends(get_db)):    
-    song = db.query(Song).filter(Song.id == song_id).first()
-    if not song:
-        raise HTTPException(status_code=404, detail="Song not found")
-    
-    song_data = {"id": song.id, "title": song.title, "artist": song.artist, "album": song.album, "url": song.url}
-    return song_data
-
 # Search songs
 @songs_router.get("/search")
 def search_songs(
@@ -43,6 +33,16 @@ def search_songs(
         Song.album.ilike(f"%{query}%")
     ).all()
     return songs
+
+# Get a specific song
+@songs_router.get("/{song_id}")
+def get_song(song_id: int, db: Session = Depends(get_db)):    
+    song = db.query(Song).filter(Song.id == song_id).first()
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    song_data = {"id": song.id, "title": song.title, "artist": song.artist, "album": song.album, "url": song.url}
+    return song_data
 
 # Stream song using S3 pre-signed URL
 @songs_router.get("/{song_id}/stream")

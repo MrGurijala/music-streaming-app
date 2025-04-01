@@ -13,6 +13,8 @@ class MusicStreamUser(HttpUser):
         self.album_id = None
         self.playlist_id = None
         self.user_id = None
+        self.token = None
+        self.headers = {}
         self._signup_and_login()
 
     def _random_username(self):
@@ -34,9 +36,6 @@ class MusicStreamUser(HttpUser):
         if login_resp.status_code == 200:
             self.token = login_resp.json().get("access_token")
             self.headers = {"Authorization": f"Bearer {self.token}"}
-        else:
-            self.token = None
-            self.headers = {}
 
     @task(2)
     def view_songs(self):
