@@ -14,6 +14,17 @@ Parameters:
     Description: List of public subnet IDs for the ALB
     Type: List<AWS::EC2::Subnet::Id>
 
+  TargetGroupFullName:
+    Type: String
+    Description: Full name of the Target Group (e.g., targetgroup/my-app-tg/123456abcdef)
+  LoadBalancerFullName:
+    Type: String
+    Description: Full name of the ALB (e.g., app/my-alb/123456abcdef)
+  DashboardName:
+    Type: String
+    Default: ALB-Monitoring-Dashboard
+    Description: Name of the CloudWatch Dashboard
+
 Resources:
   FastAPISecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -265,7 +276,7 @@ Resources:
   TargetResponseTimeAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: HighTargetResponseTime
+      AlarmName: !Sub "${TargetGroupFullName}-HighTargetResponseTime"
       ComparisonOperator: GreaterThanThreshold
       EvaluationPeriods: 1
       MetricName: TargetResponseTime
@@ -276,12 +287,15 @@ Resources:
       AlarmDescription: ALB target response time > 200ms
       Dimensions:
         - Name: TargetGroup
-          Value: !Ref TargetGroup
+          Value: !Ref TargetGroupFullName
+        - Name: LoadBalancer
+          Value: !Ref LoadBalancerFullName
+      TreatMissingData: notBreaching
 
   Target5XXErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: Target5XXErrors
+      AlarmName: !Sub "${TargetGroupFullName}-Target5XXErrors"
       ComparisonOperator: GreaterThanOrEqualToThreshold
       EvaluationPeriods: 1
       MetricName: HTTPCode_Target_5XX_Count
@@ -292,7 +306,10 @@ Resources:
       AlarmDescription: ALB target returned 5XX errors
       Dimensions:
         - Name: TargetGroup
-          Value: !Ref TargetGroup
+          Value: !Ref TargetGroupFullName
+        - Name: LoadBalancer
+          Value: !Ref LoadBalancerFullName
+      TreatMissingData: notBreaching
 
   BillingAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -309,6 +326,87 @@ Resources:
       Threshold: 20
       ComparisonOperator: GreaterThanThreshold
       AlarmDescription: Estimated charges exceed $20/day
+
+  TargetGroupDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Ref DashboardName
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "${TargetGroupFullName}", "LoadBalancer", "${LoadBalancerFullName}"]],
+                "region": "${AWS::Region}",
+                "stat": "Average",
+                "title": "Target Response Time (Average)",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "${TargetGroupFullName}", "LoadBalancer", "${LoadBalancerFullName}" , {"stat": "p99"}]],
+                "region": "${AWS::Region}",
+                "title": "Target Response Time (P99)",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "TargetGroup", "${TargetGroupFullName}", "LoadBalancer", "${LoadBalancerFullName}"]],
+                "region": "${AWS::Region}",
+                "title": "Target 5XX Errors",
+                "stat": "Sum",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [["AWS/ApplicationELB", "RequestCountPerTarget", "TargetGroup", "${TargetGroupFullName}", "LoadBalancer", "${LoadBalancerFullName}"]],
+                "region": "${AWS::Region}",
+                "title": "Request Count Per Target",
+                "stat": "Sum",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", "${TargetGroupFullName}", "LoadBalancer", "${LoadBalancerFullName}"],
+                  [".", "UnHealthyHostCount", ".", "${TargetGroupFullName}", ".", "${LoadBalancerFullName}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Healthy vs Unhealthy Host Count",
+                "period": 300
+              }
+            }
+          ]
+        }
 
 Mappings:
   RegionMap:

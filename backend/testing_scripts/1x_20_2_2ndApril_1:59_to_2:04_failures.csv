@@ -1,0 +1,2 @@
+Method,Name,Error,Occurrences
+GET,/favorites/3560,HTTPError('502 Server Error: Bad Gateway for url: /favorites/3560'),1
