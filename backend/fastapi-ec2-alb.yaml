@@ -212,7 +212,7 @@ Resources:
       MetricName: CPUUtilization
       Namespace: AWS/EC2
       Statistic: Average
-      Period: 300
+      Period: 60
       EvaluationPeriods: 2
       Threshold: 70
       ComparisonOperator: GreaterThanThreshold
@@ -230,7 +230,7 @@ Resources:
       MetricName: CPUUtilization
       Namespace: AWS/EC2
       Statistic: Average
-      Period: 300
+      Period: 60
       EvaluationPeriods: 2
       Threshold: 30
       ComparisonOperator: LessThanThreshold
@@ -249,7 +249,7 @@ Resources:
       EvaluationPeriods: 1
       MetricName: CPUUtilization
       Namespace: AWS/EC2
-      Period: 300
+      Period: 60
       Statistic: Average
       Threshold: 75
       AlarmDescription: Alarm when CPU exceeds 75%
@@ -265,7 +265,7 @@ Resources:
       EvaluationPeriods: 1
       MetricName: StatusCheckFailed_Instance
       Namespace: AWS/EC2
-      Period: 300
+      Period: 60
       Statistic: Average
       Threshold: 0
       AlarmDescription: Alarm when instance status check fails
@@ -281,7 +281,7 @@ Resources:
       EvaluationPeriods: 1
       MetricName: TargetResponseTime
       Namespace: AWS/ApplicationELB
-      Period: 300
+      Period: 60
       Statistic: Average
       Threshold: 0.2
       AlarmDescription: ALB target response time > 200ms
@@ -300,7 +300,7 @@ Resources:
       EvaluationPeriods: 1
       MetricName: HTTPCode_Target_5XX_Count
       Namespace: AWS/ApplicationELB
-      Period: 300
+      Period: 60
       Statistic: Sum
       Threshold: 1
       AlarmDescription: ALB target returned 5XX errors
