@@ -413,7 +413,7 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [["AWS/Billing", "EstimatedCharges", "Currency", "GBP"]],
-                "region": "us-east-1",
+                "region": "${AWS::Region}",
                 "title": "Estimated Charges (GBP)",
                 "stat": "Maximum",
                 "period": 86400
