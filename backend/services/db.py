@@ -13,7 +13,7 @@ DATABASE_URL = get_database_url()
 
 # Create SQLAlchemy Engine
 engine = create_engine(DATABASE_URL, echo=False, pool_size=10,           # Max number of DB connections to keep
-    max_overflow=20,        # Extra connections allowed beyond pool_size
+    max_overflow=5,        # Extra connections allowed beyond pool_size
     pool_timeout=30,        # Seconds to wait before throwing timeout
     pool_recycle=1800       # Recycle connections every 30 minutes
     )

@@ -79,11 +79,11 @@ class MusicStreamUser(HttpUser):
         if self.album_id and self.song_id:
             self.client.post(f"/albums/{self.album_id}/songs", json={"song_id": self.song_id}, headers=self.headers)
 
-    @task(1)
-    def delete_album(self):
-        if self.album_id:
-            self.client.delete(f"/albums/{self.album_id}", headers=self.headers)
-            self.album_id = None
+    # @task(1)
+    # def delete_album(self):
+    #     if self.album_id:
+    #         self.client.delete(f"/albums/{self.album_id}", headers=self.headers)
+    #         self.album_id = None
 
     @task(1)
     def create_playlist(self):
@@ -100,16 +100,16 @@ class MusicStreamUser(HttpUser):
         if self.playlist_id and self.song_id:
             self.client.post(f"/playlists/{self.playlist_id}/songs", json={"song_id": self.song_id}, headers=self.headers)
 
-    @task(1)
-    def remove_song_from_playlist(self):
-        if self.playlist_id and self.song_id:
-            self.client.delete(f"/playlists/{self.playlist_id}/songs/{self.song_id}", headers=self.headers)
+    # @task(1)
+    # def remove_song_from_playlist(self):
+    #     if self.playlist_id and self.song_id:
+    #         self.client.delete(f"/playlists/{self.playlist_id}/songs/{self.song_id}", headers=self.headers)
 
-    @task(1)
-    def delete_playlist(self):
-        if self.playlist_id:
-            self.client.delete(f"/playlists/{self.playlist_id}", headers=self.headers)
-            self.playlist_id = None
+    # @task(1)
+    # def delete_playlist(self):
+    #     if self.playlist_id:
+    #         self.client.delete(f"/playlists/{self.playlist_id}", headers=self.headers)
+    #         self.playlist_id = None
 
     @task(1)
     def add_favorite(self):
@@ -122,7 +122,7 @@ class MusicStreamUser(HttpUser):
             self.client.get(f"/favorites/{self.user_id}", headers=self.headers)
 
 
-    @task(1)
-    def remove_favorite(self):
-        if self.user_id and self.song_id:
-            self.client.delete(f"/favorites/{self.user_id}/{self.song_id}", headers=self.headers)
+    # @task(1)
+    # def remove_favorite(self):
+    #     if self.user_id and self.song_id:
+    #         self.client.delete(f"/favorites/{self.user_id}/{self.song_id}", headers=self.headers)

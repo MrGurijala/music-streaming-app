@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudWatch alarms and dashboard for existing RDS instance
+
+Parameters:
+  DBInstanceIdentifier:
+    Type: String
+    Default: music-stream-db
+    Description: RDS instance identifier
+
+Resources:
+  CPUUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DeletionPolicy: Retain
+    Properties:
+      AlarmName: !Sub "${DBInstanceIdentifier}-HighCPUUtilization"
+      Namespace: AWS/RDS
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: Alarm when CPU utilization exceeds 80%
+      TreatMissingData: notBreaching
+
+  FreeStorageSpaceAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DeletionPolicy: Retain
+    Properties:
+      AlarmName: !Sub "${DBInstanceIdentifier}-LowFreeStorage"
+      Namespace: AWS/RDS
+      MetricName: FreeStorageSpace
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10000000000 # 10 GB
+      ComparisonOperator: LessThanThreshold
+      AlarmDescription: Alarm when free storage space drops below 10GB
+      TreatMissingData: notBreaching
+
+  DatabaseConnectionsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DeletionPolicy: Retain
+    Properties:
+      AlarmName: !Sub "${DBInstanceIdentifier}-HighDBConnections"
+      Namespace: AWS/RDS
+      MetricName: DatabaseConnections
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 100
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: Alarm when too many database connections
+      TreatMissingData: notBreaching
+
+  ReadLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DeletionPolicy: Retain
+    Properties:
+      AlarmName: !Sub "${DBInstanceIdentifier}-HighReadLatency"
+      Namespace: AWS/RDS
+      MetricName: ReadLatency
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0.05
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: Alarm when read latency is high
+      TreatMissingData: notBreaching
+
+  RDSDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    DeletionPolicy: Retain
+    Properties:
+      DashboardName: !Sub "RDS-${DBInstanceIdentifier}-Dashboard"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "region": "eu-west-2",
+                "metrics": [["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", "${DBInstanceIdentifier}"]],
+                "title": "RDS CPU Utilization",
+                "stat": "Average",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "region": "eu-west-2",
+                "metrics": [["AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", "${DBInstanceIdentifier}"]],
+                "title": "RDS Free Storage Space",
+                "stat": "Average",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "region": "eu-west-2",
+                "metrics": [["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", "${DBInstanceIdentifier}"]],
+                "title": "RDS Database Connections",
+                "stat": "Average",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "region": "eu-west-2",
+                "metrics": [["AWS/RDS", "ReadLatency", "DBInstanceIdentifier", "${DBInstanceIdentifier}"]],
+                "title": "RDS Read Latency",
+                "stat": "Average",
+                "period": 300
+              }
+            }
+          ]
+        }
