@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from passlib.hash import bcrypt
 from backend.services.db import get_db
 from backend.models import User
-from passlib.hash import bcrypt
-from fastapi.security import OAuth2PasswordBearer
 from backend.services.auth import create_access_token, verify_password
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")

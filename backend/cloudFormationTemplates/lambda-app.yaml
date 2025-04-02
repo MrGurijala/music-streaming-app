@@ -1,0 +1,307 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda + API Gateway for /songs route in hybrid architecture
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.8
+    MemorySize: 512
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        STAGE: prod
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  DBSecretArn:
+    Type: String
+    Description: ARN of the RDS credentials stored in Secrets Manager
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group allowing Lambda access to RDS
+  LoadBalancer:
+    Type: String
+    Description: ALB resource name
+  TargetGroup:
+    Type: String
+    Description: ALB Target Group resource name
+
+Resources:
+  # EC2 Launch Template
+  EC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        InstanceType: t3.micro
+        ImageId: ami-0c02fb55956c7d316
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            yum update -y
+            amazon-linux-extras enable python3.8
+            yum install -y python3.8 git amazon-cloudwatch-agent
+            cd /home/ec2-user
+            git clone -b hybrid-backend-dev https://github.com/MrGurijala/music-streaming-app.git
+            cd music-streaming-app
+            python3.8 -m venv venv
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install gunicorn
+            pip install -r backend/requirements.txt
+            mkdir -p /var/log/fastapi
+            venv/bin/gunicorn main:app \
+              -w 4 \
+              -k uvicorn.workers.UvicornWorker \
+              --bind 0.0.0.0:8000 \
+              --access-logfile /var/log/fastapi/access.log \
+              --error-logfile /var/log/fastapi/error.log \
+              --timeout 60 --daemon
+
+            # Write CloudWatch Agent config
+            cat <<EOF > /opt/aws/amazon-cloudwatch-agent/bin/cloudwatch-config.json
+            {
+              "metrics": {
+                "metrics_collected": {
+                  "cpu": {
+                    "measurement": ["cpu_usage_idle", "cpu_usage_iowait", "cpu_usage_user"],
+                    "metrics_collection_interval": 60
+                  },
+                  "mem": {
+                    "measurement": ["mem_used_percent"]
+                  },
+                  "disk": {
+                    "measurement": ["used_percent"],
+                    "resources": ["*"]
+                  },
+                  "swap": {
+                    "measurement": ["swap_used_percent"]
+                  }
+                }
+              }
+            }
+            EOF
+
+            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+              -a fetch-config -m ec2 \
+              -c file:/opt/aws/amazon-cloudwatch-agent/bin/cloudwatch-config.json -s
+
+  ApplicationTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: hybrid-app-target-group
+      Port: 8000
+      Protocol: HTTP
+      VpcId: !Ref VpcId
+      TargetType: instance
+      HealthCheckPath: /
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: hybrid-app-alb
+      Scheme: internet-facing
+      Subnets: !Ref SubnetIds
+      SecurityGroups:
+        - !Ref SecurityGroupId
+
+  ApplicationListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ApplicationTargetGroup
+
+  EC2AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: !Ref SubnetIds
+      LaunchTemplate:
+        LaunchTemplateId: !Ref EC2LaunchTemplate
+        Version: !GetAtt EC2LaunchTemplate.LatestVersionNumber
+      MinSize: "1"
+      MaxSize: "4"
+      DesiredCapacity: "2"
+      TargetGroupARNs:
+        - !Ref ApplicationTargetGroup
+
+  SongsApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: songs-api-handler
+      Handler: app.handler
+      CodeUri: ./songs_lambda
+      Events:
+        SongsApi:
+          Type: Api
+          Properties:
+            Path: /songs
+            Method: ANY
+        SongsApiWithId:
+          Type: Api
+          Properties:
+            Path: /songs/{proxy+}
+            Method: ANY
+      VpcConfig:
+        SecurityGroupIds:
+          - sg-xxxxxxxx
+        SubnetIds:
+          - subnet-xxxxxxxx
+          - subnet-yyyyyyyy
+      Policies:
+        - AWSLambdaVPCAccessExecutionRole
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: arn:aws:s3:::music-transcoded-bucket/*
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: arn:aws:ssm:*:*:parameter/music-stream-db-url
+
+  ## Lambda Function Monitoring (Songs & Auth APIs)
+  LambdaDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: HighLambdaDuration
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1000
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: Lambda duration > 1s
+      Dimensions:
+        - Name: FunctionName
+          Value: songs-auth-handler
+
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: LambdaErrorRate
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmDescription: Lambda errors detected
+      Dimensions:
+        - Name: FunctionName
+          Value: songs-auth-handler
+
+  ## ALB Performance Alarms
+  TargetResponseTimeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: HighTargetResponseTime
+      MetricName: TargetResponseTime
+      Namespace: AWS/ApplicationELB
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0.2
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: ALB target response time > 200ms
+      Dimensions:
+        - Name: TargetGroup
+          Value: !Ref TargetGroup
+
+  Target5XXErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: Target5XXErrors
+      MetricName: HTTPCode_Target_5XX_Count
+      Namespace: AWS/ApplicationELB
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmDescription: ALB target returned 5XX errors
+      Dimensions:
+        - Name: TargetGroup
+          Value: !Ref TargetGroup
+
+  ALBDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: alb-monitoring-dashboard
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "${TargetGroup}"]],
+                "region": "${AWS::Region}",
+                "stat": "Average",
+                "title": "Target Response Time (Avg)"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "TargetGroup", "${TargetGroup}"]],
+                "region": "${AWS::Region}",
+                "stat": "Sum",
+                "title": "5XX Errors"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [["AWS/ApplicationELB", "RequestCountPerTarget", "TargetGroup", "${TargetGroup}"]],
+                "region": "${AWS::Region}",
+                "stat": "Sum",
+                "title": "Request Count Per Target"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", "${TargetGroup}"],
+                  [".", "UnHealthyHostCount", "TargetGroup", "${TargetGroup}"]
+                ],
+                "region": "${AWS::Region}",
+                "stat": "Average",
+                "title": "Host Health (Healthy vs Unhealthy)"
+              }
+            }
+          ]
+        }
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL for songs"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/songs"
