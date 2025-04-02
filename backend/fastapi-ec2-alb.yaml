@@ -314,18 +314,18 @@ Resources:
   BillingAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: HighDailyEstimatedCharges
+      AlarmName: HighEstimatedChargesGBP
       Namespace: AWS/Billing
       MetricName: EstimatedCharges
       Dimensions:
         - Name: Currency
-          Value: USD
+          Value: GBP
       Statistic: Maximum
       Period: 86400
       EvaluationPeriods: 1
-      Threshold: 20
+      Threshold: 2
       ComparisonOperator: GreaterThanThreshold
-      AlarmDescription: Estimated charges exceed $20/day
+      AlarmDescription: Estimated charges exceed £2/day
 
   TargetGroupDashboard:
     Type: AWS::CloudWatch::Dashboard
@@ -403,6 +403,20 @@ Resources:
                 "region": "${AWS::Region}",
                 "title": "Healthy vs Unhealthy Host Count",
                 "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [["AWS/Billing", "EstimatedCharges", "Currency", "GBP"]],
+                "region": "us-east-1",
+                "title": "Estimated Charges (GBP)",
+                "stat": "Maximum",
+                "period": 86400
               }
             }
           ]
