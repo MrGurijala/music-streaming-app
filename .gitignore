@@ -42,7 +42,8 @@ env_local/
 .vscode/
 .idea/
 # Backend
-/backend/src/config/
+/backend/src/songs_lambda.zip
+/backend/src/auth_lambda.zip
 
 # Frontend
 # Ignore dependencies
