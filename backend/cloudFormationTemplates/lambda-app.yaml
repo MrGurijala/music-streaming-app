@@ -400,117 +400,117 @@ Resources:
           ]
         }
 
-        LambdaDashboard:
-          Type: AWS::CloudWatch::Dashboard
-          Properties:
-            DashboardName: hybrid-lambda-performance-dashboard
-            DashboardBody: !Sub |
-              {
-                "widgets": [
-                  {
-                    "type": "metric",
-                    "x": 0, "y": 0, "width": 12, "height": 6,
-                    "properties": {
-                      "metrics": [
-                        ["AWS/Lambda", "Invocations", "FunctionName", "${SongsFunction}"],
-                        ["AWS/Lambda", "Invocations", "FunctionName", "${AuthFunction}"]
-                      ],
-                      "region": "${AWS::Region}",
-                      "stat": "Sum",
-                      "title": "Lambda Invocations"
-                    }
-                  },
-                  {
-                    "type": "metric",
-                    "x": 12, "y": 0, "width": 12, "height": 6,
-                    "properties": {
-                      "metrics": [
-                        ["AWS/Lambda", "Duration", "FunctionName", "${SongsFunction}"],
-                        ["AWS/Lambda", "Duration", "FunctionName", "${AuthFunction}"]
-                      ],
-                      "region": "${AWS::Region}",
-                      "stat": "Average",
-                      "title": "Lambda Duration (Avg)"
-                    }
-                  },
-                  {
-                    "type": "metric",
-                    "x": 0, "y": 6, "width": 12, "height": 6,
-                    "properties": {
-                      "metrics": [
-                        ["AWS/Lambda", "Throttles", "FunctionName", "${SongsFunction}"],
-                        ["AWS/Lambda", "Throttles", "FunctionName", "${AuthFunction}"]
-                      ],
-                      "region": "${AWS::Region}",
-                      "stat": "Sum",
-                      "title": "Lambda Throttles"
-                    }
-                  },
-                  {
-                    "type": "metric",
-                    "x": 12, "y": 6, "width": 12, "height": 6,
-                    "properties": {
-                      "metrics": [
-                        ["AWS/Lambda", "Errors", "FunctionName", "${SongsFunction}"],
-                        ["AWS/Lambda", "Errors", "FunctionName", "${AuthFunction}"]
-                      ],
-                      "region": "${AWS::Region}",
-                      "stat": "Sum",
-                      "title": "Lambda Errors"
-                    }
-                  }
-                ]
+  LambdaDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: hybrid-lambda-performance-dashboard
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${SongsFunction}"],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${AuthFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "stat": "Sum",
+                "title": "Lambda Invocations"
               }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${SongsFunction}"],
+                  ["AWS/Lambda", "Duration", "FunctionName", "${AuthFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "stat": "Average",
+                "title": "Lambda Duration (Avg)"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Throttles", "FunctionName", "${SongsFunction}"],
+                  ["AWS/Lambda", "Throttles", "FunctionName", "${AuthFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "stat": "Sum",
+                "title": "Lambda Throttles"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Errors", "FunctionName", "${SongsFunction}"],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${AuthFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "stat": "Sum",
+                "title": "Lambda Errors"
+              }
+            }
+          ]
+        }
 
-        EC2Dashboard:
-          Type: AWS::CloudWatch::Dashboard
-          Properties:
-            DashboardName: hybrid-ec2-performance-dashboard
-            DashboardBody: |
-              {
-                "widgets": [
-                  {
-                    "type": "metric",
-                    "x": 0, "y": 0, "width": 12, "height": 6,
-                    "properties": {
-                      "metrics": [["CWAgent", "cpu_usage_user"]],
-                      "region": "${AWS::Region}",
-                      "stat": "Average",
-                      "title": "EC2 CPU Usage (User %)"
-                    }
-                  },
-                  {
-                    "type": "metric",
-                    "x": 12, "y": 0, "width": 12, "height": 6,
-                    "properties": {
-                      "metrics": [["CWAgent", "mem_used_percent"]],
-                      "region": "${AWS::Region}",
-                      "stat": "Average",
-                      "title": "EC2 Memory Usage (%)"
-                    }
-                  },
-                  {
-                    "type": "metric",
-                    "x": 0, "y": 6, "width": 12, "height": 6,
-                    "properties": {
-                      "metrics": [["CWAgent", "swap_used_percent"]],
-                      "region": "${AWS::Region}",
-                      "stat": "Average",
-                      "title": "EC2 Swap Usage (%)"
-                    }
-                  },
-                  {
-                    "type": "metric",
-                    "x": 12, "y": 6, "width": 12, "height": 6,
-                    "properties": {
-                      "metrics": [["CWAgent", "disk_used_percent"]],
-                      "region": "${AWS::Region}",
-                      "stat": "Average",
-                      "title": "EC2 Disk Usage (%)"
-                    }
-                  }
-                ]
+  EC2Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: hybrid-ec2-performance-dashboard
+      DashboardBody: |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [["CWAgent", "cpu_usage_user"]],
+                "region": "${AWS::Region}",
+                "stat": "Average",
+                "title": "EC2 CPU Usage (User %)"
               }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [["CWAgent", "mem_used_percent"]],
+                "region": "${AWS::Region}",
+                "stat": "Average",
+                "title": "EC2 Memory Usage (%)"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [["CWAgent", "swap_used_percent"]],
+                "region": "${AWS::Region}",
+                "stat": "Average",
+                "title": "EC2 Swap Usage (%)"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [["CWAgent", "disk_used_percent"]],
+                "region": "${AWS::Region}",
+                "stat": "Average",
+                "title": "EC2 Disk Usage (%)"
+              }
+            }
+          ]
+        }
 
 Outputs:
   SongsApiUrl:
