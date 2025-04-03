@@ -37,8 +37,8 @@ Resources:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
-        InstanceType: t3.micro
-        ImageId: ami-0c02fb55956c7d316
+        InstanceType: t2.micro
+        ImageId: ami-04b2ad6c50c72936b
         SecurityGroupIds:
           - !Ref SecurityGroupId
         UserData:
@@ -134,41 +134,134 @@ Resources:
       TargetGroupARNs:
         - !Ref ApplicationTargetGroup
 
-  SongsApiFunction:
-    Type: AWS::Serverless::Function
+  SongsFunction:
+    Type: AWS::Lambda::Function
     Properties:
-      FunctionName: songs-api-handler
-      Handler: app.handler
-      CodeUri: ./songs_lambda
-      Events:
-        SongsApi:
-          Type: Api
-          Properties:
-            Path: /songs
-            Method: ANY
-        SongsApiWithId:
-          Type: Api
-          Properties:
-            Path: /songs/{proxy+}
-            Method: ANY
+      FunctionName: SongsLambda
+      Handler: main.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: your-code-bucket
+        S3Key: songs_lambda.zip
+      Runtime: python3.8
+      Timeout: 30
       VpcConfig:
         SecurityGroupIds:
-          - sg-xxxxxxxx
-        SubnetIds:
-          - subnet-xxxxxxxx
-          - subnet-yyyyyyyy
+          - !Ref SecurityGroupId
+        SubnetIds: !Ref SubnetIds
+      Environment:
+        Variables:
+          DB_SECRET_ARN: !Ref DBSecretArn
+
+  AuthFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: AuthLambda
+      Handler: main.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: your-code-bucket
+        S3Key: auth_lambda.zip
+      Runtime: python3.8
+      Timeout: 30
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds: !Ref SubnetIds
+      Environment:
+        Variables:
+          DB_SECRET_ARN: !Ref DBSecretArn
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaRDSAccessRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
       Policies:
-        - AWSLambdaVPCAccessExecutionRole
-        - Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-              Resource: arn:aws:s3:::music-transcoded-bucket/*
-            - Effect: Allow
-              Action:
-                - ssm:GetParameter
-              Resource: arn:aws:ssm:*:*:parameter/music-stream-db-url
+        - PolicyName: LambdaRDSAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  SongsAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: SongsAPI
+
+  SongsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt SongsAPI.RootResourceId
+      PathPart: songs
+      RestApiId: !Ref SongsAPI
+
+  SongsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: ANY
+      ResourceId: !Ref SongsResource
+      RestApiId: !Ref SongsAPI
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SongsFunction.Arn}/invocations"
+
+  AuthAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: AuthAPI
+
+  AuthResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt AuthAPI.RootResourceId
+      PathPart: auth
+      RestApiId: !Ref AuthAPI
+
+  AuthMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: ANY
+      ResourceId: !Ref AuthResource
+      RestApiId: !Ref AuthAPI
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthFunction.Arn}/invocations"
+
+  LambdaPermissionSongs:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SongsFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SongsAPI}/*/*/songs"
+
+  LambdaPermissionAuth:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AuthFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthAPI}/*/*/auth"
 
   ## Lambda Function Monitoring (Songs & Auth APIs)
   LambdaDurationAlarm:
@@ -239,7 +332,7 @@ Resources:
   ALBDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: alb-monitoring-dashboard
+      DashboardName: hybrid-alb-monitoring-dashboard
       DashboardBody: !Sub |
         {
           "widgets": [
@@ -301,7 +394,123 @@ Resources:
           ]
         }
 
+        LambdaDashboard:
+          Type: AWS::CloudWatch::Dashboard
+          Properties:
+            DashboardName: hybrid-lambda-performance-dashboard
+            DashboardBody: !Sub |
+              {
+                "widgets": [
+                  {
+                    "type": "metric",
+                    "x": 0, "y": 0, "width": 12, "height": 6,
+                    "properties": {
+                      "metrics": [
+                        ["AWS/Lambda", "Invocations", "FunctionName", "${SongsFunction}"],
+                        ["AWS/Lambda", "Invocations", "FunctionName", "${AuthFunction}"]
+                      ],
+                      "region": "${AWS::Region}",
+                      "stat": "Sum",
+                      "title": "Lambda Invocations"
+                    }
+                  },
+                  {
+                    "type": "metric",
+                    "x": 12, "y": 0, "width": 12, "height": 6,
+                    "properties": {
+                      "metrics": [
+                        ["AWS/Lambda", "Duration", "FunctionName", "${SongsFunction}"],
+                        ["AWS/Lambda", "Duration", "FunctionName", "${AuthFunction}"]
+                      ],
+                      "region": "${AWS::Region}",
+                      "stat": "Average",
+                      "title": "Lambda Duration (Avg)"
+                    }
+                  },
+                  {
+                    "type": "metric",
+                    "x": 0, "y": 6, "width": 12, "height": 6,
+                    "properties": {
+                      "metrics": [
+                        ["AWS/Lambda", "Throttles", "FunctionName", "${SongsFunction}"],
+                        ["AWS/Lambda", "Throttles", "FunctionName", "${AuthFunction}"]
+                      ],
+                      "region": "${AWS::Region}",
+                      "stat": "Sum",
+                      "title": "Lambda Throttles"
+                    }
+                  },
+                  {
+                    "type": "metric",
+                    "x": 12, "y": 6, "width": 12, "height": 6,
+                    "properties": {
+                      "metrics": [
+                        ["AWS/Lambda", "Errors", "FunctionName", "${SongsFunction}"],
+                        ["AWS/Lambda", "Errors", "FunctionName", "${AuthFunction}"]
+                      ],
+                      "region": "${AWS::Region}",
+                      "stat": "Sum",
+                      "title": "Lambda Errors"
+                    }
+                  }
+                ]
+              }
+
+        EC2Dashboard:
+          Type: AWS::CloudWatch::Dashboard
+          Properties:
+            DashboardName: hybrid-ec2-performance-dashboard
+            DashboardBody: |
+              {
+                "widgets": [
+                  {
+                    "type": "metric",
+                    "x": 0, "y": 0, "width": 12, "height": 6,
+                    "properties": {
+                      "metrics": [["CWAgent", "cpu_usage_user"]],
+                      "region": "${AWS::Region}",
+                      "stat": "Average",
+                      "title": "EC2 CPU Usage (User %)"
+                    }
+                  },
+                  {
+                    "type": "metric",
+                    "x": 12, "y": 0, "width": 12, "height": 6,
+                    "properties": {
+                      "metrics": [["CWAgent", "mem_used_percent"]],
+                      "region": "${AWS::Region}",
+                      "stat": "Average",
+                      "title": "EC2 Memory Usage (%)"
+                    }
+                  },
+                  {
+                    "type": "metric",
+                    "x": 0, "y": 6, "width": 12, "height": 6,
+                    "properties": {
+                      "metrics": [["CWAgent", "swap_used_percent"]],
+                      "region": "${AWS::Region}",
+                      "stat": "Average",
+                      "title": "EC2 Swap Usage (%)"
+                    }
+                  },
+                  {
+                    "type": "metric",
+                    "x": 12, "y": 6, "width": 12, "height": 6,
+                    "properties": {
+                      "metrics": [["CWAgent", "disk_used_percent"]],
+                      "region": "${AWS::Region}",
+                      "stat": "Average",
+                      "title": "EC2 Disk Usage (%)"
+                    }
+                  }
+                ]
+              }
+
 Outputs:
-  ApiUrl:
-    Description: "API Gateway endpoint URL for songs"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/songs"
+  SongsApiUrl:
+    Description: "API Gateway endpoint URL for /songs"
+    Value: !Sub "https://${SongsAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod/songs"
+
+  AuthApiUrl:
+    Description: "API Gateway endpoint URL for /auth"
+    Value: !Sub "https://${AuthAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod/auth"
