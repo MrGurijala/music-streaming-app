@@ -20,7 +20,6 @@ async def log_request_duration(request: Request, call_next):
     return response
 
 # Include routes
-app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(albums_router, prefix="/albums", tags=["Albums"])
 app.include_router(favorites_router, prefix="/favorites", tags=["Favorites"])
 app.include_router(playlists_router, prefix="/playlists", tags=["Playlists"])

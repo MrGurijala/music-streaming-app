@@ -141,7 +141,7 @@ Resources:
       Handler: main.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
-        S3Bucket: your-code-bucket
+        S3Bucket: hybrid-lambda-bucket
         S3Key: songs_lambda.zip
       Runtime: python3.8
       Timeout: 30
