@@ -2,7 +2,6 @@ from fastapi import FastAPI, Request
 import uvicorn
 import time
 
-from routes.auth import auth_router
 from routes.album import albums_router
 from routes.favourite import favorites_router
 from routes.playlist import playlists_router
