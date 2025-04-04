@@ -14,10 +14,12 @@ docker run --rm -v "$PWD":/var/task -w /var/task lambci/lambda:build-python3.8 \
 cp songs_lambda/main.py build_songs/
 cp -r songs_lambda/routes build_songs/
 cp models.py build_songs/
+# ✅ Add these two:
+cp models.py build_songs/
 cp -r services build_songs/
 
 # Validate pydantic_core is present
-if [[ ! -f build_songs/pydantic_core/_pydantic_core*.so ]]; then
+if ! ls build_songs/pydantic_core/_pydantic_core*.so >/dev/null 2>&1; then
   echo "❌ pydantic_core not found — build failed."
   exit 1
 fi

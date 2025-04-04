@@ -19,13 +19,17 @@ build/
 *.egg-info/
 *.install
 *.egg
-
+*.zip
+.venv-auth_lambda/
 # FastAPI and backend-related
 .env
 *.sqlite3
 *.pkl
 *.db
 *.log
+
+backend/build_auth/
+backend/build_songs/
 
 # Ignore Python virtual environments
 .venv/
@@ -42,8 +46,8 @@ env_local/
 .vscode/
 .idea/
 # Backend
-/backend/src/songs_lambda.zip
-/backend/src/auth_lambda.zip
+/backend/songs_lambda.zip
+/backend/auth_lambda.zip
 
 # Frontend
 # Ignore dependencies
