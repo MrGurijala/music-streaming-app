@@ -1,17 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Transform: AWS::Serverless-2016-10-31
 Description: Lambda + API Gateway for /songs route in hybrid architecture
-
-Globals:
-  Function:
-    Timeout: 30
-    Runtime: python3.8
-    MemorySize: 512
-    Architectures:
-      - arm64
-    Environment:
-      Variables:
-        STAGE: prod
 
 Parameters:
   VpcId:
@@ -24,12 +12,6 @@ Parameters:
   SecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Security group allowing Lambda access to RDS
-  LoadBalancer:
-    Type: String
-    Description: ALB resource name
-  TargetGroup:
-    Type: String
-    Description: ALB Target Group resource name
 
 Resources:
   # EC2 Launch Template
@@ -49,7 +31,7 @@ Resources:
             yum install -y python3.8 git amazon-cloudwatch-agent
             cd /home/ec2-user
             git clone -b hybrid-backend-dev https://github.com/MrGurijala/music-streaming-app.git
-            cd music-streaming-app
+            cd music-streaming-app/backend
             python3.8 -m venv venv
             source venv/bin/activate
             pip install --upgrade pip
@@ -102,6 +84,17 @@ Resources:
       TargetType: instance
       HealthCheckPath: /
 
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP to ALB
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -109,7 +102,7 @@ Resources:
       Scheme: internet-facing
       Subnets: !Ref SubnetIds
       SecurityGroups:
-        - !Ref SecurityGroupId
+        - !Ref ALBSecurityGroup
 
   ApplicationListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -130,7 +123,7 @@ Resources:
         Version: !GetAtt EC2LaunchTemplate.LatestVersionNumber
       MinSize: "1"
       MaxSize: "4"
-      DesiredCapacity: "2"
+      DesiredCapacity: "1"
       TargetGroupARNs:
         - !Ref ApplicationTargetGroup
 
@@ -144,6 +137,8 @@ Resources:
         S3Bucket: hybrid-lambda-bucket
         S3Key: songs_lambda.zip
       Runtime: python3.8
+      Architectures:
+        - x86_64
       Timeout: 30
       VpcConfig:
         SecurityGroupIds:
@@ -163,6 +158,8 @@ Resources:
         S3Bucket: hybrid-lambda-bucket
         S3Key: auth_lambda.zip
       Runtime: python3.8
+      Architectures:
+        - x86_64
       Timeout: 30
       VpcConfig:
         SecurityGroupIds:
@@ -173,37 +170,37 @@ Resources:
           DB_SECRET_ARN: !Ref DBSecretArn
 
   LambdaExecutionRole:
-  Type: AWS::IAM::Role
-  Properties:
-    RoleName: LambdaRDSAccessRole
-    AssumeRolePolicyDocument:
-      Version: "2012-10-17"
-      Statement:
-        - Effect: Allow
-          Principal:
-            Service: lambda.amazonaws.com
-          Action: sts:AssumeRole
-    Policies:
-      - PolicyName: LambdaRDSAccessPolicy
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Action:
-                - secretsmanager:GetSecretValue
-              Resource: "*"
-            - Effect: Allow
-              Action:
-                - logs:CreateLogGroup
-                - logs:CreateLogStream
-                - logs:PutLogEvents
-              Resource: "*"
-            - Effect: Allow
-              Action:
-                - ec2:CreateNetworkInterface
-                - ec2:DescribeNetworkInterfaces
-                - ec2:DeleteNetworkInterface
-              Resource: "*"
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaRDSAccessRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaRDSAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                Resource: "*"
 
   SongsAPI:
     Type: AWS::ApiGateway::RestApi
@@ -269,6 +266,20 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthAPI}/*/*/auth"
 
+  SongsApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref SongsAPI
+      StageName: Prod
+    DependsOn: SongsMethod
+
+  AuthApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref AuthAPI
+      StageName: Prod
+    DependsOn: AuthMethod
+
   ## Lambda Function Monitoring (Songs & Auth APIs)
   LambdaDurationAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -317,7 +328,7 @@ Resources:
       AlarmDescription: ALB target response time > 200ms
       Dimensions:
         - Name: TargetGroup
-          Value: !Ref TargetGroup
+          Value: !Ref ApplicationTargetGroup
 
   Target5XXErrorAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -333,7 +344,7 @@ Resources:
       AlarmDescription: ALB target returned 5XX errors
       Dimensions:
         - Name: TargetGroup
-          Value: !Ref TargetGroup
+          Value: !Ref ApplicationTargetGroup
 
   ALBDashboard:
     Type: AWS::CloudWatch::Dashboard
@@ -349,7 +360,7 @@ Resources:
               "width": 12,
               "height": 6,
               "properties": {
-                "metrics": [["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "${TargetGroup}"]],
+                "metrics": [["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "${ApplicationTargetGroup}"]],
                 "region": "${AWS::Region}",
                 "stat": "Average",
                 "title": "Target Response Time (Avg)"
@@ -362,7 +373,7 @@ Resources:
               "width": 12,
               "height": 6,
               "properties": {
-                "metrics": [["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "TargetGroup", "${TargetGroup}"]],
+                "metrics": [["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "TargetGroup", "${ApplicationTargetGroup}"]],
                 "region": "${AWS::Region}",
                 "stat": "Sum",
                 "title": "5XX Errors"
@@ -375,7 +386,7 @@ Resources:
               "width": 12,
               "height": 6,
               "properties": {
-                "metrics": [["AWS/ApplicationELB", "RequestCountPerTarget", "TargetGroup", "${TargetGroup}"]],
+                "metrics": [["AWS/ApplicationELB", "RequestCountPerTarget", "TargetGroup", "${ApplicationTargetGroup}"]],
                 "region": "${AWS::Region}",
                 "stat": "Sum",
                 "title": "Request Count Per Target"
@@ -389,8 +400,8 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", "${TargetGroup}"],
-                  [".", "UnHealthyHostCount", "TargetGroup", "${TargetGroup}"]
+                  ["AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", "${ApplicationTargetGroup}"],
+                  [".", "UnHealthyHostCount", "TargetGroup", "${ApplicationTargetGroup}"]
                 ],
                 "region": "${AWS::Region}",
                 "stat": "Average",
@@ -520,3 +531,7 @@ Outputs:
   AuthApiUrl:
     Description: "API Gateway endpoint URL for /auth"
     Value: !Sub "https://${AuthAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod/auth"
+
+  ALBEndpoint:
+    Description: "Public DNS for the Application Load Balancer"
+    Value: !GetAtt ApplicationLoadBalancer.DNSName

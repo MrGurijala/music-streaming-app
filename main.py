@@ -1,12 +1,10 @@
 from fastapi import FastAPI, Request
 import uvicorn
 import time
-#from mangum import Mangum 
-from backend.routes.auth import auth_router
-from backend.routes.album import albums_router
-from backend.routes.favourite import favorites_router
-from backend.routes.playlist import playlists_router
-from backend.routes.songs import songs_router
+
+from backend.ec2_app.routes.album import albums_router
+from backend.ec2_app.routes.favourite import favorites_router
+from backend.ec2_app.routes.playlist import playlists_router
 
 
 # Initialize FastAPI app
@@ -21,11 +19,9 @@ async def log_request_duration(request: Request, call_next):
     return response
 
 # Include routes
-app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(albums_router, prefix="/albums", tags=["Albums"])
 app.include_router(favorites_router, prefix="/favorites", tags=["Favorites"])
 app.include_router(playlists_router, prefix="/playlists", tags=["Playlists"])
-app.include_router(songs_router, prefix="/songs", tags=["Songs"])
 
 # API Documentation
 @app.get("/")
