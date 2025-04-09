@@ -141,7 +141,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: SongsLambda
-      Handler: main.lambda_handler
+      Handler: main.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         S3Bucket: hybrid-lambda-bucket
@@ -162,7 +162,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: AuthLambda
-      Handler: main.lambda_handler
+      Handler: main.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         S3Bucket: hybrid-lambda-bucket
@@ -210,6 +210,15 @@ Resources:
                   - ec2:CreateNetworkInterface
                   - ec2:DescribeNetworkInterfaces
                   - ec2:DeleteNetworkInterface
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
                 Resource: "*"
 
   SongsAPI:

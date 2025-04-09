@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: VPC Endpoints for AWS SSM, EC2Messages, and SSMMessages
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: ID of the VPC
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnet IDs for the endpoints (should be private subnets)
+
+Resources:
+  VPCEndpointSSM:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssm
+      VpcId: !Ref VpcId
+      VpcEndpointType: Interface
+      SubnetIds: !Ref SubnetIds
+      PrivateDnsEnabled: true
+      SecurityGroupIds: []
+
+  VPCEndpointEC2Messages:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ec2messages
+      VpcId: !Ref VpcId
+      VpcEndpointType: Interface
+      SubnetIds: !Ref SubnetIds
+      PrivateDnsEnabled: true
+      SecurityGroupIds: []
+
+  VPCEndpointSSMMessages:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssmmessages
+      VpcId: !Ref VpcId
+      VpcEndpointType: Interface
+      SubnetIds: !Ref SubnetIds
+      PrivateDnsEnabled: true
+      SecurityGroupIds: []
+
+  VPCEndpointKMS:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.kms
+      VpcId: !Ref VpcId
+      VpcEndpointType: Interface
+      SubnetIds: !Ref SubnetIds
+      PrivateDnsEnabled: true
+      SecurityGroupIds: []
+
+Outputs:
+  SSMEndpoint:
+    Description: SSM VPC Endpoint ID
+    Value: !Ref VPCEndpointSSM
+  EC2MessagesEndpoint:
+    Description: EC2 Messages VPC Endpoint ID
+    Value: !Ref VPCEndpointEC2Messages
+  SSMMessagesEndpoint:
+    Description: SSM Messages VPC Endpoint ID
+    Value: !Ref VPCEndpointSSMMessages
+  KMSEndpoint:
+    Description: KMS VPC Endpoint ID
+    Value: !Ref VPCEndpointKMS

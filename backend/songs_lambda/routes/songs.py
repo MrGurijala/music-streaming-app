@@ -44,11 +44,29 @@ def stream_song(song_id: int, db: Session = Depends(get_db)):
     return {"stream_url": presigned_url}
 
 # Get a specific song
-@songs_router.get("/{song_id}")
-def get_song(song_id: int, db: Session = Depends(get_db)):    
-    song = db.query(Song).filter(Song.id == song_id).first()
-    if not song:
-        raise HTTPException(status_code=404, detail="Song not found")
+# @songs_router.get("/{song_id}")
+# def get_song(song_id: int, db: Session = Depends(get_db)):    
+#     song = db.query(Song).filter(Song.id == song_id).first()
+#     if not song:
+#         raise HTTPException(status_code=404, detail="Song not found")
     
-    song_data = {"id": song.id, "title": song.title, "artist": song.artist, "album": song.album, "url": song.url}
-    return song_data
+#     song_data = {"id": song.id, "title": song.title, "artist": song.artist, "album": song.album, "url": song.url}
+#     return song_data
+
+@songs_router.get("/{song_id}")
+def get_song(song_id: int, db: Session = Depends(get_db)):
+    try:
+        print(f"🔍 Getting song with ID: {song_id}")
+        song = db.query(Song).filter(Song.id == song_id).first()
+        if not song:
+            raise HTTPException(status_code=404, detail="Song not found")
+        return {
+            "id": song.id,
+            "title": song.title,
+            "artist": song.artist,
+            "album": song.album,
+            "url": song.url
+        }
+    except Exception as e:
+        print(f"❌ Exception: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal error")
