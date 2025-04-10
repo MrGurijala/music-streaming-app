@@ -6,7 +6,8 @@ from passlib.context import CryptContext
 ssm = boto3.client("ssm", region_name="eu-west-2")
 
 def get_ssm_param(name: str) -> str:
-    return ssm.get_parameter(Name=name, WithDecryption=True)["Parameter"]["Value"]
+    #return ssm.get_parameter(Name=name, WithDecryption=True)["Parameter"]["Value"]
+    return "g+GAxJNf3QwWcseJEAtBo3qDur9QvJQqDsvziVVIQkU="
 
 # Load values from SSM
 SECRET_KEY = get_ssm_param("/music-streaming-app/JWT_SECRET_KEY")

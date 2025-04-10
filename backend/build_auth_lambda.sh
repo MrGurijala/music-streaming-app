@@ -3,8 +3,8 @@
 echo "📦 Packaging auth_lambda..."
 
 # Clean previous build
-rm -rf build_songs
-mkdir -p build_songs
+rm -rf build_auth
+mkdir -p build_auth
 
 # Install dependencies using Lambda-compatible Docker image (python3.8)
 docker run --rm -v "$PWD":/var/task -w /var/task lambci/lambda:build-python3.8 \

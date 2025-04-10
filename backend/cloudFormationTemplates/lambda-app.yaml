@@ -48,9 +48,12 @@ Resources:
               --daemon
 
             # Write CloudWatch Agent config
-            cat <<EOF > /opt/aws/amazon-cloudwatch-agent/bin/cloudwatch-config.json
+            cat <<EOF > /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-config.json
             {
               "metrics": {
+              "append_dimensions": {
+                "AutoScalingGroupName": "$${!aws:AutoScalingGroupName}"
+              },
                 "metrics_collected": {
                   "cpu": {
                     "measurement": ["cpu_usage_idle", "cpu_usage_iowait", "cpu_usage_user"],
@@ -73,7 +76,7 @@ Resources:
 
             /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
               -a fetch-config -m ec2 \
-              -c file:/opt/aws/amazon-cloudwatch-agent/bin/cloudwatch-config.json -s
+              -c file:/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-config.json -s
 
   ApplicationTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -127,6 +130,7 @@ Resources:
   EC2AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
+      AutoScalingGroupName: hybrid-ec2-asg
       VPCZoneIdentifier: !Ref SubnetIds
       LaunchTemplate:
         LaunchTemplateId: !Ref EC2LaunchTemplate
@@ -374,12 +378,11 @@ Resources:
           "widgets": [
             {
               "type": "metric",
-              "x": 0,
-              "y": 0,
-              "width": 12,
-              "height": 6,
+              "x": 0, "y": 0, "width": 12, "height": 6,
               "properties": {
-                "metrics": [["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "${ApplicationTargetGroup}"]],
+                "metrics": [
+                  ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "app/hybrid-app-alb/4629171ebee35fba", "TargetGroup", "targetgroup/hybrid-app-target-group/24393d91223077ec"]
+                ],
                 "region": "${AWS::Region}",
                 "stat": "Average",
                 "title": "Target Response Time (Avg)"
@@ -387,12 +390,11 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 12,
-              "y": 0,
-              "width": 12,
-              "height": 6,
+              "x": 12, "y": 0, "width": 12, "height": 6,
               "properties": {
-                "metrics": [["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "TargetGroup", "${ApplicationTargetGroup}"]],
+                "metrics": [
+                  ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", "app/hybrid-app-alb/4629171ebee35fba", "TargetGroup", "targetgroup/hybrid-app-target-group/24393d91223077ec"]
+                ],
                 "region": "${AWS::Region}",
                 "stat": "Sum",
                 "title": "5XX Errors"
@@ -400,12 +402,11 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 0,
-              "y": 6,
-              "width": 12,
-              "height": 6,
+              "x": 0, "y": 6, "width": 12, "height": 6,
               "properties": {
-                "metrics": [["AWS/ApplicationELB", "RequestCountPerTarget", "TargetGroup", "${ApplicationTargetGroup}"]],
+                "metrics": [
+                  ["AWS/ApplicationELB", "RequestCountPerTarget", "LoadBalancer", "app/hybrid-app-alb/4629171ebee35fba", "TargetGroup", "targetgroup/hybrid-app-target-group/24393d91223077ec"]
+                ],
                 "region": "${AWS::Region}",
                 "stat": "Sum",
                 "title": "Request Count Per Target"
@@ -413,14 +414,11 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 12,
-              "y": 6,
-              "width": 12,
-              "height": 6,
+              "x": 12, "y": 6, "width": 12, "height": 6,
               "properties": {
                 "metrics": [
-                  ["AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", "${ApplicationTargetGroup}"],
-                  [".", "UnHealthyHostCount", "TargetGroup", "${ApplicationTargetGroup}"]
+                  ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", "app/hybrid-app-alb/4629171ebee35fba", "TargetGroup", "targetgroup/hybrid-app-target-group/24393d91223077ec"],
+                  ["AWS/ApplicationELB", "UnHealthyHostCount", "LoadBalancer", "app/hybrid-app-alb/4629171ebee35fba", "TargetGroup", "targetgroup/hybrid-app-target-group/24393d91223077ec"]
                 ],
                 "region": "${AWS::Region}",
                 "stat": "Average",
@@ -496,14 +494,16 @@ Resources:
     Type: AWS::CloudWatch::Dashboard
     Properties:
       DashboardName: hybrid-ec2-performance-dashboard
-      DashboardBody: |
+      DashboardBody: !Sub |
         {
           "widgets": [
             {
               "type": "metric",
               "x": 0, "y": 0, "width": 12, "height": 6,
               "properties": {
-                "metrics": [["CWAgent", "cpu_usage_user"]],
+                "metrics": [
+                  ["CWAgent", "cpu_usage_user", "AutoScalingGroupName", "hybrid-ec2-asg"]
+                ],
                 "region": "${AWS::Region}",
                 "stat": "Average",
                 "title": "EC2 CPU Usage (User %)"
@@ -513,7 +513,9 @@ Resources:
               "type": "metric",
               "x": 12, "y": 0, "width": 12, "height": 6,
               "properties": {
-                "metrics": [["CWAgent", "mem_used_percent"]],
+                "metrics": [
+                  ["CWAgent", "mem_used_percent", "AutoScalingGroupName", "hybrid-ec2-asg"]
+                ],
                 "region": "${AWS::Region}",
                 "stat": "Average",
                 "title": "EC2 Memory Usage (%)"
@@ -523,7 +525,9 @@ Resources:
               "type": "metric",
               "x": 0, "y": 6, "width": 12, "height": 6,
               "properties": {
-                "metrics": [["CWAgent", "swap_used_percent"]],
+                "metrics": [
+                  ["CWAgent", "swap_used_percent", "AutoScalingGroupName", "hybrid-ec2-asg"]
+                ],
                 "region": "${AWS::Region}",
                 "stat": "Average",
                 "title": "EC2 Swap Usage (%)"
@@ -533,7 +537,9 @@ Resources:
               "type": "metric",
               "x": 12, "y": 6, "width": 12, "height": 6,
               "properties": {
-                "metrics": [["CWAgent", "disk_used_percent"]],
+                "metrics": [
+                  ["CWAgent", "disk_used_percent", "AutoScalingGroupName", "hybrid-ec2-asg", "path", "/"]
+                ],
                 "region": "${AWS::Region}",
                 "stat": "Average",
                 "title": "EC2 Disk Usage (%)"

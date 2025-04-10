@@ -321,96 +321,60 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       AlarmDescription: Estimated charges exceed £2/day
 
-  TargetGroupDashboard:
+  BaselineALBDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: !Ref DashboardName
-      DashboardBody: !Sub |
+      DashboardName: ec2-baseline-alb-dashboard
+      DashboardBody: |
         {
           "widgets": [
             {
               "type": "metric",
-              "x": 0,
-              "y": 0,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "${TargetGroup.TargetGroupFullName}", "LoadBalancer", "${ALB.LoadBalancerFullName}"]],
-                "region": "${AWS::Region}",
-                "stat": "Average",
-                "title": "Target Response Time (Average)",
-                "period": 300
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 0,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "${TargetGroup.TargetGroupFullName}", "LoadBalancer", "${ALB.LoadBalancerFullName}" , {"stat": "p99"}]],
-                "region": "${AWS::Region}",
-                "title": "Target Response Time (P99)",
-                "period": 300
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 6,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "TargetGroup", "${TargetGroup.TargetGroupFullName}", "LoadBalancer", "${ALB.LoadBalancerFullName}"]],
-                "region": "${AWS::Region}",
-                "title": "Target 5XX Errors",
-                "stat": "Sum",
-                "period": 300
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 6,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [["AWS/ApplicationELB", "RequestCountPerTarget", "TargetGroup", "${TargetGroup.TargetGroupFullName}", "LoadBalancer", "${ALB.LoadBalancerFullName}"]],
-                "region": "${AWS::Region}",
-                "title": "Request Count Per Target",
-                "stat": "Sum",
-                "period": 300
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 12,
-              "width": 12,
-              "height": 6,
+              "x": 0, "y": 0, "width": 12, "height": 6,
               "properties": {
                 "metrics": [
-                  ["AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", "${TargetGroup.TargetGroupFullName}", "LoadBalancer", "${ALB.LoadBalancerFullName}"],
-                  [".", "UnHealthyHostCount", ".", "${TargetGroup.TargetGroupFullName}", ".", "${ALB.LoadBalancerFullName}"]
+                  ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "app/FastAPI-ALB/cd99dde7830ee1b1", "TargetGroup", "targetgroup/FastAPITargetGroup/a16d9d700362873b"]
                 ],
-                "region": "${AWS::Region}",
-                "title": "Healthy vs Unhealthy Host Count",
-                "period": 300
+                "region": "eu-west-2",
+                "stat": "Average",
+                "title": "Baseline - Target Response Time (Avg)"
               }
             },
             {
               "type": "metric",
-              "x": 12,
-              "y": 12,
-              "width": 12,
-              "height": 6,
+              "x": 12, "y": 0, "width": 12, "height": 6,
               "properties": {
-                "metrics": [["AWS/Billing", "EstimatedCharges", "Currency", "GBP"]],
-                "region": "${AWS::Region}",
-                "title": "Estimated Charges (GBP)",
-                "stat": "Maximum",
-                "period": 86400
+                "metrics": [
+                  ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", "app/FastAPI-ALB/cd99dde7830ee1b1", "TargetGroup", "targetgroup/FastAPITargetGroup/a16d9d700362873b"]
+                ],
+                "region": "eu-west-2",
+                "stat": "Sum",
+                "title": "Baseline - 5XX Errors"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/ApplicationELB", "RequestCountPerTarget", "LoadBalancer", "app/FastAPI-ALB/cd99dde7830ee1b1", "TargetGroup", "targetgroup/FastAPITargetGroup/a16d9d700362873b"]
+                ],
+                "region": "eu-west-2",
+                "stat": "Sum",
+                "title": "Baseline - Request Count Per Target"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", "app/FastAPI-ALB/cd99dde7830ee1b1", "TargetGroup", "targetgroup/FastAPITargetGroup/a16d9d700362873b"],
+                  ["AWS/ApplicationELB", "UnHealthyHostCount", "LoadBalancer", "app/FastAPI-ALB/cd99dde7830ee1b1", "TargetGroup", "targetgroup/FastAPITargetGroup/a16d9d700362873b"]
+                ],
+                "region": "eu-west-2",
+                "stat": "Average",
+                "title": "Baseline - Healthy vs Unhealthy Hosts"
               }
             }
           ]

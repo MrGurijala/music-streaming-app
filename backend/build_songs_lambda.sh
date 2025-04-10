@@ -8,7 +8,7 @@ mkdir -p build_songs
 
 # Install dependencies using Lambda-compatible Docker image (python3.8)
 docker run --rm -v "$PWD":/var/task -w /var/task lambci/lambda:build-python3.8 \
-  pip install -r songs_lambda/requirements.txt -t build_songs/
+  pip install -r songs_lambda/requirements.txt -c constraints.txt -t build_songs/
 
 # Copy app code
 cp songs_lambda/main.py build_songs/

@@ -21,6 +21,8 @@ build/
 *.egg
 *.zip
 .venv-auth_lambda/
+
+env38/
 # FastAPI and backend-related
 .env
 *.sqlite3
