@@ -21,7 +21,7 @@ build/
 *.egg
 *.zip
 .venv-auth_lambda/
-
+myvenv/
 env38/
 # FastAPI and backend-related
 .env

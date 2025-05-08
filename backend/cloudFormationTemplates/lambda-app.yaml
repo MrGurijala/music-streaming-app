@@ -14,6 +14,27 @@ Parameters:
     Description: Security group allowing Lambda access to RDS
 
 Resources:
+  EC2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EC2HybridInstanceRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2InstanceRole
+
   # EC2 Launch Template
   EC2LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -23,6 +44,8 @@ Resources:
         ImageId: ami-04b2ad6c50c72936b
         SecurityGroupIds:
           - !Ref SecurityGroupId
+        IamInstanceProfile:
+          Arn: !GetAtt EC2InstanceProfile.Arn
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash
@@ -52,7 +75,7 @@ Resources:
             {
               "metrics": {
               "append_dimensions": {
-                "AutoScalingGroupName": "$${!aws:AutoScalingGroupName}"
+                "AutoScalingGroupName": "\${!aws:AutoScalingGroupName}"
               },
                 "metrics_collected": {
                   "cpu": {
@@ -140,6 +163,10 @@ Resources:
       DesiredCapacity: "1"
       TargetGroupARNs:
         - !Ref ApplicationTargetGroup
+      Tags:
+        - Key: Name
+          Value: Hybrid-Architecture-App-Instance
+          PropagateAtLaunch: true
 
   SongsFunction:
     Type: AWS::Lambda::Function
@@ -182,6 +209,14 @@ Resources:
       Environment:
         Variables:
           DB_SECRET_ARN: !Ref DBSecretArn
+      AutoPublishAlias: live
+
+  AuthProvisionedConcurrency:
+    Type: AWS::Lambda::ProvisionedConcurrencyConfiguration
+    Properties:
+      FunctionName: !Ref AuthFunction
+      Qualifier: live
+      ProvisionedConcurrentExecutions: 5
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -369,6 +404,7 @@ Resources:
         - Name: TargetGroup
           Value: !Ref ApplicationTargetGroup
 
+  ## Dashboards
   ALBDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -486,7 +522,45 @@ Resources:
                 "stat": "Sum",
                 "title": "Lambda Errors"
               }
+            },
+            {
+            "type": "metric",
+            "x": 0, "y": 12, "width": 12, "height": 6,
+            "properties": {
+              "metrics": [
+                ["AWS/ApiGateway", "Latency", "ApiName", "SongsAPI", { "stat": "Average" }],
+                ["AWS/ApiGateway", "Latency", "ApiName", "AuthAPI", { "stat": "Average" }]
+              ],
+              "region": "${AWS::Region}",
+              "title": "API Gateway Latency (Avg)"
             }
+          },
+          {
+            "type": "metric",
+            "x": 12, "y": 12, "width": 12, "height": 6,
+            "properties": {
+              "metrics": [
+                ["AWS/ApiGateway", "4XXError", "ApiName", "SongsAPI"],
+                ["AWS/ApiGateway", "5XXError", "ApiName", "SongsAPI"],
+                ["AWS/ApiGateway", "4XXError", "ApiName", "AuthAPI"],
+                ["AWS/ApiGateway", "5XXError", "ApiName", "AuthAPI"]
+              ],
+              "region": "${AWS::Region}",
+              "title": "API Gateway 4XX & 5XX Errors"
+            }
+          },
+          {
+            "type": "metric",
+            "x": 0, "y": 18, "width": 24, "height": 6,
+            "properties": {
+              "metrics": [
+                ["AWS/ApiGateway", "Count", "ApiName", "SongsAPI"],
+                ["AWS/ApiGateway", "Count", "ApiName", "AuthAPI"]
+              ],
+              "region": "${AWS::Region}",
+              "title": "API Gateway Request Count"
+            }
+          }
           ]
         }
 
@@ -499,14 +573,15 @@ Resources:
           "widgets": [
             {
               "type": "metric",
-              "x": 0, "y": 0, "width": 12, "height": 6,
+              "x": 0,"y": 0,"width": 12,"height": 6,
               "properties": {
                 "metrics": [
-                  ["CWAgent", "cpu_usage_user", "AutoScalingGroupName", "hybrid-ec2-asg"]
+                  ["AWS/EC2", "CPUUtilization", "AutoScalingGroupName", "hybrid-ec2-asg"]
                 ],
                 "region": "${AWS::Region}",
                 "stat": "Average",
-                "title": "EC2 CPU Usage (User %)"
+                "period": 300,
+                "title": "EC2 CPU Utilization"
               }
             },
             {
@@ -531,18 +606,6 @@ Resources:
                 "region": "${AWS::Region}",
                 "stat": "Average",
                 "title": "EC2 Swap Usage (%)"
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12, "y": 6, "width": 12, "height": 6,
-              "properties": {
-                "metrics": [
-                  ["CWAgent", "disk_used_percent", "AutoScalingGroupName", "hybrid-ec2-asg", "path", "/"]
-                ],
-                "region": "${AWS::Region}",
-                "stat": "Average",
-                "title": "EC2 Disk Usage (%)"
               }
             }
           ]
